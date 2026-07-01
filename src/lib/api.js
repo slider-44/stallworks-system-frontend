@@ -1,5 +1,7 @@
 // Central place for talking to the Spring Boot backend.
-// Point VITE_API_BASE_URL at your backend, e.g. http://localhost:8080/v1
+// In dev, requests to /v1/* are proxied to the backend by vite.config.js,
+// so no absolute URL/port is needed here. In prod, set VITE_API_BASE_URL
+// to your deployed API's base, e.g. https://api.yourapp.com/v1
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/v1";
 
 async function request(path, options = {}) {
@@ -54,3 +56,17 @@ export const AccountAPI = {
 export const BranchAPI = {
   list: () => request("/branches"),
 };
+
+// ---- Sales Reports ------------------------------------------------
+// Maps to SalesReportRequest:
+// { employeeId, branchId, date, timeIn, timeOut, lineItems: [{ containerSize, quantitySold, manualUnitPrice? }] }
+// Adjust the path below if your controller's @RequestMapping differs.
+export const SalesReportAPI = {
+  list: () => request("/sales-reports"),
+  create: (salesReportRequest) =>
+    request("/sales-reports", {
+      method: "POST",
+      body: JSON.stringify(salesReportRequest),
+    }),
+};
+

@@ -12,6 +12,7 @@ import {
   ChevronDown,
   LogOut,
   Users2,
+  Receipt,
 } from "lucide-react";
 
 // Items can be:
@@ -29,6 +30,7 @@ const navSections = [
       { label: "Access", view: "access" },
     ],
   },
+  { label: "Sales", icon: Receipt, view: "sales" },
   {
     label: "Products",
     icon: Package,
