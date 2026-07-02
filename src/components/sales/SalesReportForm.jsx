@@ -1,30 +1,41 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Loader2, CheckCircle2 } from "lucide-react";
-import { useSales, CONTAINER_SIZES } from "../../context/SalesContext";
+import { useSales } from "../../context/SalesContext";
+import { useContainerPrices, ADD_ONS_SIZE } from "../../context/ContainerPriceContext";
 import { useAccountManagement } from "../../context/AccountManagementContext";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-const EMPTY_ROWS = CONTAINER_SIZES.reduce((acc, c) => {
-  acc[c.key] = { quantitySold: "", manualUnitPrice: "" };
-  return acc;
-}, {});
-
 export default function SalesReportForm() {
   const { employees, branches } = useAccountManagement();
   const { addSalesReport } = useSales();
+  const { prices, loading: pricesLoading } = useContainerPrices();
+
+  // All rows the form renders: admin-priced sizes (from backend) + Add Ons (manual).
+  const allSizes = useMemo(() => [...prices, ADD_ONS_SIZE], [prices]);
 
   const [date, setDate] = useState(todayISO());
   const [employeeId, setEmployeeId] = useState("");
   const [branchId, setBranchId] = useState("");
   const [timeIn, setTimeIn] = useState("");
   const [timeOut, setTimeOut] = useState("");
-  const [rows, setRows] = useState(EMPTY_ROWS);
+  const [rows, setRows] = useState({});
 
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [success, setSuccess] = useState(false);
+
+  // (Re)initialize row state whenever the set of sizes changes (e.g. prices finish loading).
+  useEffect(() => {
+    setRows((prev) => {
+      const next = {};
+      allSizes.forEach((s) => {
+        next[s.key] = prev[s.key] || { quantitySold: "", manualUnitPrice: "" };
+      });
+      return next;
+    });
+  }, [allSizes]);
 
   const updateRow = (key, field, value) => {
     setRows((prev) => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
@@ -32,26 +43,29 @@ export default function SalesReportForm() {
 
   const lineTotal = (size) => {
     const row = rows[size.key];
+    if (!row) return 0;
     const qty = Number(row.quantitySold) || 0;
     const price = size.manualPrice ? Number(row.manualUnitPrice) || 0 : size.price;
     return qty * price;
   };
 
   const grandTotal = useMemo(
-    () => CONTAINER_SIZES.reduce((sum, size) => sum + lineTotal(size), 0),
+    () => allSizes.reduce((sum, size) => sum + lineTotal(size), 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows]
+    [rows, allSizes]
   );
 
   const buildLineItems = () =>
-    CONTAINER_SIZES.map((size) => {
-      const row = rows[size.key];
-      const qty = Number(row.quantitySold) || 0;
-      if (qty <= 0) return null; // skip untouched rows
-      const item = { containerSize: size.key, quantitySold: qty };
-      if (size.manualPrice) item.manualUnitPrice = Number(row.manualUnitPrice) || 0;
-      return item;
-    }).filter(Boolean);
+    allSizes
+      .map((size) => {
+        const row = rows[size.key];
+        const qty = Number(row?.quantitySold) || 0;
+        if (qty <= 0) return null; // skip untouched rows
+        const item = { containerSize: size.key, quantitySold: qty };
+        if (size.manualPrice) item.manualUnitPrice = Number(row.manualUnitPrice) || 0;
+        return item;
+      })
+      .filter(Boolean);
 
   const validate = () => {
     const errs = {};
@@ -65,7 +79,7 @@ export default function SalesReportForm() {
     if (lineItems.length === 0) errs.rows = "Enter at least one item sold";
 
     const addOnsRow = rows.ADD_ONS;
-    if (Number(addOnsRow.quantitySold) > 0 && !(Number(addOnsRow.manualUnitPrice) > 0)) {
+    if (addOnsRow && Number(addOnsRow.quantitySold) > 0 && !(Number(addOnsRow.manualUnitPrice) > 0)) {
       errs.addOnsPrice = "Enter a price for Add Ons";
     }
 
@@ -73,7 +87,13 @@ export default function SalesReportForm() {
   };
 
   const resetForm = () => {
-    setRows(EMPTY_ROWS);
+    setRows((prev) => {
+      const next = {};
+      Object.keys(prev).forEach((k) => {
+        next[k] = { quantitySold: "", manualUnitPrice: "" };
+      });
+      return next;
+    });
     setTimeIn("");
     setTimeOut("");
   };
@@ -197,63 +217,71 @@ export default function SalesReportForm() {
 
         {/* Container sales table */}
         <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full text-sm min-w-[640px]">
-            <thead>
-              <tr className="bg-blue-700 text-white text-xs uppercase tracking-wide">
-                <th className="text-left font-semibold py-3 px-3">Container Size</th>
-                <th className="text-left font-semibold py-3 px-3">Pieces / Price</th>
-                <th className="text-left font-semibold py-3 px-3 w-32">Pcs Sold</th>
-                <th className="text-right font-semibold py-3 px-3 w-32">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {CONTAINER_SIZES.map((size, i) => (
-                <tr
-                  key={size.key}
-                  className={`${i % 2 === 0 ? "bg-slate-50" : "bg-white"} border-b border-slate-100 last:border-0`}
-                >
-                  <td className="py-2.5 px-3 font-medium text-slate-700">{size.label}</td>
-                  <td className="py-2.5 px-3 text-slate-500">
-                    {size.manualPrice ? (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-slate-400">₱</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={rows.ADD_ONS.manualUnitPrice}
-                          onChange={(e) => updateRow("ADD_ONS", "manualUnitPrice", e.target.value)}
-                          placeholder="Price"
-                          className="w-24 border border-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-                        />
-                      </div>
-                    ) : (
-                      `${size.piecesLabel} - ₱${size.price}`
-                    )}
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <input
-                      type="number"
-                      min="0"
-                      value={rows[size.key].quantitySold}
-                      onChange={(e) => updateRow(size.key, "quantitySold", e.target.value)}
-                      placeholder="0"
-                      className="w-20 border border-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    />
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-semibold text-slate-700">
-                    ₱{lineTotal(size).toFixed(2)}
-                  </td>
+          {pricesLoading ? (
+            <div className="flex items-center justify-center py-10 text-slate-400 gap-2">
+              <Loader2 size={18} className="animate-spin" /> Loading prices…
+            </div>
+          ) : (
+            <table className="w-full text-sm min-w-[720px]">
+              <thead>
+                <tr className="bg-blue-700 text-white text-xs uppercase tracking-wide">
+                  <th className="text-left font-semibold py-3 px-3">Container Size</th>
+                  <th className="text-left font-semibold py-3 px-3 w-24">Pieces</th>
+                  <th className="text-left font-semibold py-3 px-3 w-32">Price</th>
+                  <th className="text-left font-semibold py-3 px-3 w-28">Pcs Sold</th>
+                  <th className="text-right font-semibold py-3 px-3 w-32">Total</th>
                 </tr>
-              ))}
-              <tr className="bg-blue-50 font-bold text-slate-800">
-                <td className="py-3 px-3" colSpan={3}>
-                  TOTAL
-                </td>
-                <td className="py-3 px-3 text-right">₱{grandTotal.toFixed(2)}</td>
-              </tr>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {allSizes.map((size, i) => (
+                  <tr
+                    key={size.key}
+                    className={`${i % 2 === 0 ? "bg-slate-50" : "bg-white"} border-b border-slate-100 last:border-0`}
+                  >
+                    <td className="py-2.5 px-3 font-medium text-slate-700">{size.label}</td>
+                    <td className="py-2.5 px-3 text-slate-500">{size.piecesLabel || "—"}</td>
+                    <td className="py-2.5 px-3 text-slate-500">
+                      {size.manualPrice ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-slate-400">₱</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={rows.ADD_ONS?.manualUnitPrice || ""}
+                            onChange={(e) => updateRow("ADD_ONS", "manualUnitPrice", e.target.value)}
+                            placeholder="Price"
+                            className="w-24 border border-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                          />
+                        </div>
+                      ) : (
+                        `₱${size.price.toFixed(2)}`
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <input
+                        type="number"
+                        min="0"
+                        value={rows[size.key]?.quantitySold || ""}
+                        onChange={(e) => updateRow(size.key, "quantitySold", e.target.value)}
+                        placeholder="0"
+                        className="w-20 border border-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      />
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-semibold text-slate-700">
+                      ₱{lineTotal(size).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+                <tr className="bg-blue-50 font-bold text-slate-800">
+                  <td className="py-3 px-3" colSpan={4}>
+                    TOTAL
+                  </td>
+                  <td className="py-3 px-3 text-right">₱{grandTotal.toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </table>
+          )}
         </div>
         {errors.rows && <p className="text-xs text-red-500 -mt-2">{errors.rows}</p>}
         {errors.addOnsPrice && <p className="text-xs text-red-500 -mt-2">{errors.addOnsPrice}</p>}

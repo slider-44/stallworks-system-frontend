@@ -51,6 +51,18 @@ export const AccountAPI = {
     }),
 };
 
+// ---- Container Prices (admin-managed) ------------------------------
+// GET is public (used by the Sales Report form). PUT is role-guarded
+// server-side (ADMIN/MANAGER) via @PreAuthorize.
+export const ContainerPriceAPI = {
+  list: () => request("/container-prices"),
+  updatePrice: (containerSize, price) =>
+    request(`/container-prices/${containerSize}`, {
+      method: "PUT",
+      body: JSON.stringify({ price }),
+    }),
+};
+
 // ---- Branches ------------------------------------------------------
 // Used to populate the branch multi-select on the employee form.
 export const BranchAPI = {
@@ -69,4 +81,18 @@ export const SalesReportAPI = {
       body: JSON.stringify(salesReportRequest),
     }),
 };
+
+// ---- Expenses --------------------------------------------------------
+// Maps to ExpenseRequest: { date, branchId, description, amount }
+// Independent from Sales Reports — its own entity/list.
+export const ExpenseAPI = {
+  list: () => request("/expenses"),
+  create: (expenseRequest) =>
+    request("/expenses", {
+      method: "POST",
+      body: JSON.stringify(expenseRequest),
+    }),
+};
+ 
+
 

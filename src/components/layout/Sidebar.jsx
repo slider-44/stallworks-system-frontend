@@ -13,48 +13,67 @@ import {
   LogOut,
   Users2,
   Receipt,
+  Wallet,
+  ShieldCheck,
 } from "lucide-react";
+import { useCurrentUser } from "../../context/CurrentUserContext";
 
 // Items can be:
 //  - a standalone link:      { label, icon, view }
 //  - an expandable group:    { label, icon, children: [{ label, view? }] }
 // Groups whose children don't carry a `view` are decorative placeholders
 // (kept from the original mockup) — clicking them just expands/collapses.
-const navSections = [
-  { label: "Dashboard", icon: LayoutDashboard, view: "dashboard" },
-  {
-    label: "Account Management",
-    icon: Users2,
-    children: [
-      { label: "Employees", view: "employees" },
-      { label: "Access", view: "access" },
-    ],
-  },
-  { label: "Sales", icon: Receipt, view: "sales" },
-  {
-    label: "Products",
-    icon: Package,
-    children: [{ label: "All Products" }, { label: "Add Product" }, { label: "Categories" }],
-  },
-  {
-    label: "Orders",
-    icon: ShoppingCart,
-    children: [{ label: "Order List" }, { label: "Order Details" }, { label: "Invoices" }],
-  },
-  { label: "Messages", icon: MessageSquare, children: [{ label: "Inbox" }, { label: "Sent" }] },
-  {
-    label: "Notifications",
-    icon: Bell,
-    children: [{ label: "All" }, { label: "Unread" }],
-  },
-  {
-    label: "Settings",
-    icon: Settings,
-    children: [{ label: "Profile" }, { label: "Account" }, { label: "Preferences" }],
-  },
-  { label: "Login", icon: LogIn },
-  { label: "Sign Up", icon: UserPlus },
-];
+function buildNavSections(isAdmin) {
+  const sections = [
+    { label: "Dashboard", icon: LayoutDashboard, view: "dashboard" },
+    {
+      label: "Account Management",
+      icon: Users2,
+      children: [
+        { label: "Employees", view: "employees" },
+        { label: "Access", view: "access" },
+      ],
+    },
+    { label: "Sales", icon: Receipt, view: "sales" },
+    { label: "Expenses", icon: Wallet, view: "expenses" },
+  ];
+
+  if (isAdmin) {
+    sections.push({
+      label: "Admin",
+      icon: ShieldCheck,
+      children: [{ label: "Container Prices", view: "admin-prices" }],
+    });
+  }
+
+  sections.push(
+    {
+      label: "Products",
+      icon: Package,
+      children: [{ label: "All Products" }, { label: "Add Product" }, { label: "Categories" }],
+    },
+    {
+      label: "Orders",
+      icon: ShoppingCart,
+      children: [{ label: "Order List" }, { label: "Order Details" }, { label: "Invoices" }],
+    },
+    { label: "Messages", icon: MessageSquare, children: [{ label: "Inbox" }, { label: "Sent" }] },
+    {
+      label: "Notifications",
+      icon: Bell,
+      children: [{ label: "All" }, { label: "Unread" }],
+    },
+    {
+      label: "Settings",
+      icon: Settings,
+      children: [{ label: "Profile" }, { label: "Account" }, { label: "Preferences" }],
+    },
+    { label: "Login", icon: LogIn },
+    { label: "Sign Up", icon: UserPlus }
+  );
+
+  return sections;
+}
 
 function SidebarItem({ item, index, openIndex, setOpenIndex, currentView, onNavigate }) {
   const isOpen = openIndex === index;
@@ -125,6 +144,8 @@ function SidebarItem({ item, index, openIndex, setOpenIndex, currentView, onNavi
 
 export default function Sidebar({ currentView, onNavigate }) {
   const [openIndex, setOpenIndex] = React.useState(1); // Account Management open by default
+  const { isAdmin } = useCurrentUser();
+  const navSections = buildNavSections(isAdmin);
 
   return (
     <aside className="hidden lg:flex w-64 flex-col bg-white border-r border-slate-200">
