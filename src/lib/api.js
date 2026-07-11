@@ -1,11 +1,21 @@
-// Central place for talking to the Spring Boot backend.
-// In dev, requests to /v1/* are proxied to the backend by vite.config.js,
-// so no absolute URL/port is needed here. In prod, set VITE_API_BASE_URL
-// to your deployed API's base, e.g. https://api.yourapp.com/v1
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/v1";
+// Two backend services now:
+//   - core-services (port 8082) — employees, branches, container prices,
+//     sales reports, attendance, expenses
+//   - auth-service   (port 8081) — accounts / login / credentials
+//
+// In dev, vite.config.js proxies specific paths to the right port (see
+// the comments there). Both happen to share the same "/api/v1" shape,
+// so the same base works for both locally — the proxy is what actually
+// splits traffic to the correct backend.
+//
+// In prod there's likely no dev-proxy, so each service gets its own
+// overridable base — point these at a gateway once one exists, or at
+// each service's real deployed URL until then.
+const CORE_API_BASE = import.meta.env.VITE_CORE_API_BASE_URL || "/api/v1";
+const AUTH_API_BASE = import.meta.env.VITE_AUTH_API_BASE_URL || "/api/v1";
 
-async function request(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
+async function requestWithBase(base, path, options = {}) {
+  const res = await fetch(`${base}${path}`, {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
   });
@@ -26,7 +36,11 @@ async function request(path, options = {}) {
   return res.json();
 }
 
-// ---- Employees --------------------------------------------------------
+// Convenience wrappers so existing call sites below don't need to change.
+const request = (path, options) => requestWithBase(CORE_API_BASE, path, options);
+const authRequest = (path, options) => requestWithBase(AUTH_API_BASE, path, options);
+
+// ---- Employees (core-services) ----------------------------------------
 // Maps to EmployeeRequest:
 // { firstName, lastName, phoneNumber, role, branchIds: [Long] }
 export const EmployeeAPI = {
@@ -39,23 +53,56 @@ export const EmployeeAPI = {
     }),
 };
 
-// ---- Accounts (Access) -------------------------------------------------
+// ---- Accounts (auth-service) --------------------------------------------
 // Maps to AccountRequest:
 // { employeeId, userName, password }
+// NOTE: uses authRequest (auth-service), not request (core-services) — a
+// different backend, even though the path shape looks similar.
 export const AccountAPI = {
-  list: () => request("/accounts"),
+  list: () => authRequest("/accounts"),
   create: (accountRequest) =>
-    request("/accounts", {
+    authRequest("/accounts", {
       method: "POST",
       body: JSON.stringify(accountRequest),
     }),
 };
 
-// ---- Container Prices (admin-managed) ------------------------------
+// ---- Branches (core-services / core-common) ----------------------------
+// GET is public (used by dropdowns across Employees/Sales/Attendance/Expenses).
+// POST is admin-gated server-side (ADMIN/MANAGER), same pattern as ContainerPrice.
+//
+// NOTE: the backend entity field is `branchName`, but the rest of the
+// frontend already reads `branch.name` — normalized here so nothing else
+// has to change.
+export const BranchAPI = {
+  list: async () => {
+    const branches = await request("/branches");
+    return (branches || []).map((b) => ({
+      id: b.id,
+      name: b.branchName,
+      active: b.active,
+    }));
+  },
+  create: async (name) => {
+    const created = await request("/branches", {
+      method: "POST",
+      body: JSON.stringify({ branchName: name }),
+    });
+    return { id: created.id, name: created.branchName, active: created.active };
+  },
+};
+
+// ---- Container Prices (core-services, admin-managed) --------------------
 // GET is public (used by the Sales Report form). PUT is role-guarded
 // server-side (ADMIN/MANAGER) via @PreAuthorize.
 export const ContainerPriceAPI = {
-  list: () => request("/container-prices"),
+  // Pass { active: true } to only get sellable sizes (verified working
+  // against the backend); omit for everything, active or not (used by
+  // the Admin page, which needs to see/manage inactive sizes too).
+  list: (params = {}) => {
+    const qs = params.active !== undefined ? `?active=${params.active}` : "";
+    return request(`/container-prices${qs}`);
+  },
   updatePrice: (containerSize, price) =>
     request(`/container-prices/${containerSize}`, {
       method: "PUT",
@@ -63,26 +110,7 @@ export const ContainerPriceAPI = {
     }),
 };
 
-// ---- Branches ------------------------------------------------------
-// Used to populate the branch multi-select on the employee form.
-export const BranchAPI = {
-  list: () => request("/branches"),
-};
-
-// ---- Sales Reports ------------------------------------------------
-// Maps to SalesReportRequest:
-// { employeeId, branchId, date, timeIn, timeOut, lineItems: [{ containerSize, quantitySold, manualUnitPrice? }] }
-// Adjust the path below if your controller's @RequestMapping differs.
-export const SalesReportAPI = {
-  list: () => request("/sales-reports"),
-  create: (salesReportRequest) =>
-    request("/sales-reports", {
-      method: "POST",
-      body: JSON.stringify(salesReportRequest),
-    }),
-};
-
-// ---- Expenses --------------------------------------------------------
+// ---- Expenses (core-services) -------------------------------------------
 // Maps to ExpenseRequest: { date, branchId, description, amount }
 // Independent from Sales Reports — its own entity/list.
 export const ExpenseAPI = {
@@ -93,6 +121,47 @@ export const ExpenseAPI = {
       body: JSON.stringify(expenseRequest),
     }),
 };
- 
 
+// ---- Attendance (core-services, payroll) --------------------------------
+// Maps to AttendanceRequest: { employeeId, branchId, date, timeIn, timeOut }
+// Independent from Sales Reports — feeds payroll, not sales.
+export const AttendanceAPI = {
+  list: () => request("/attendance"),
+  create: (attendanceRequest) =>
+    request("/attendance", {
+      method: "POST",
+      body: JSON.stringify(attendanceRequest),
+    }),
+};
 
+// ---- Cash Summary (core-services) --------------------------------------
+// Maps to CashSummaryRequest: { date, branchId, pettyCashYesterday, gcash,
+// pettyCashNextday, billCounts: [{ denomination, count }] }
+// Upsert semantics — one per (date, branchId). Server computes actualCash,
+// cashRemittance, gcashRemittance, totalRemittance — never trust the
+// client for these.
+export const CashSummaryAPI = {
+  get: (date, branchId) =>
+    request(`/cash-summaries?date=${date}&branchId=${branchId}`).catch((err) => {
+      // 404 just means "nothing saved yet for this date/branch" — not a real error.
+      if (err.message.includes("404") || err.message.toLowerCase().includes("not found")) return null;
+      throw err;
+    }),
+  save: (cashSummaryRequest) =>
+    request("/cash-summaries", {
+      method: "POST",
+      body: JSON.stringify(cashSummaryRequest),
+    }),
+};
+
+// ---- Sales Reports (core-services) --------------------------------------
+// Maps to SalesReportRequest:
+// { employeeId, branchId, date, timeIn, timeOut, lineItems: [{ containerSize, quantitySold, manualUnitPrice? }] }
+export const SalesReportAPI = {
+  list: () => request("/sales-reports"),
+  create: (salesReportRequest) =>
+    request("/sales-reports", {
+      method: "POST",
+      body: JSON.stringify(salesReportRequest),
+    }),
+};

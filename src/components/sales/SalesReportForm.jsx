@@ -6,17 +6,18 @@ import { useAccountManagement } from "../../context/AccountManagementContext";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+// Standalone again — Sales is logged once at closing, independently from
+// Expenses (which happens throughout the day). Owns its own header.
 export default function SalesReportForm() {
   const { employees, branches } = useAccountManagement();
   const { addSalesReport } = useSales();
   const { prices, loading: pricesLoading } = useContainerPrices();
 
-  // All rows the form renders: admin-priced sizes (from backend) + Add Ons (manual).
   const allSizes = useMemo(() => [...prices, ADD_ONS_SIZE], [prices]);
 
   const [date, setDate] = useState(todayISO());
-  const [employeeId, setEmployeeId] = useState("");
   const [branchId, setBranchId] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
   const [timeIn, setTimeIn] = useState("");
   const [timeOut, setTimeOut] = useState("");
   const [rows, setRows] = useState({});
@@ -26,7 +27,6 @@ export default function SalesReportForm() {
   const [apiError, setApiError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  // (Re)initialize row state whenever the set of sizes changes (e.g. prices finish loading).
   useEffect(() => {
     setRows((prev) => {
       const next = {};
@@ -60,7 +60,7 @@ export default function SalesReportForm() {
       .map((size) => {
         const row = rows[size.key];
         const qty = Number(row?.quantitySold) || 0;
-        if (qty <= 0) return null; // skip untouched rows
+        if (qty <= 0) return null;
         const item = { containerSize: size.key, quantitySold: qty };
         if (size.manualPrice) item.manualUnitPrice = Number(row.manualUnitPrice) || 0;
         return item;
@@ -128,8 +128,8 @@ export default function SalesReportForm() {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-      <h2 className="text-lg font-bold text-slate-800">Sales Report</h2>
-      <p className="text-sm text-slate-400 mt-0.5">Enter today's container sales.</p>
+      <h2 className="text-xl font-bold text-teal-700">Sales report</h2>
+      <p className="text-sm text-slate-400 mt-0.5">Enter today's container sales, once at closing.</p>
 
       <form onSubmit={handleSubmit} className="mt-5 space-y-5">
         {apiError && (
@@ -143,25 +143,24 @@ export default function SalesReportForm() {
           </div>
         )}
 
-        {/* Header fields */}
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
           <div>
-            <label className="text-xs font-semibold text-slate-500">Date</label>
+            <label className="text-xs font-semibold text-teal-600">Date</label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="mt-1 w-full border border-slate-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
             />
             {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-500">Branch</label>
+            <label className="text-xs font-semibold text-teal-600">Branch</label>
             <select
               value={branchId}
               onChange={(e) => setBranchId(e.target.value)}
-              className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="mt-1 w-full border border-slate-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
             >
               <option value="">Select branch</option>
               {branches.map((b) => (
@@ -174,11 +173,11 @@ export default function SalesReportForm() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-500">Crew</label>
+            <label className="text-xs font-semibold text-teal-600">Crew</label>
             <select
               value={employeeId}
               onChange={(e) => setEmployeeId(e.target.value)}
-              className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="mt-1 w-full border border-slate-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
             >
               <option value="">Select crew</option>
               {employees.map((emp) => (
@@ -187,35 +186,32 @@ export default function SalesReportForm() {
                 </option>
               ))}
             </select>
-            {errors.employeeId && (
-              <p className="text-xs text-red-500 mt-1">{errors.employeeId}</p>
-            )}
+            {errors.employeeId && <p className="text-xs text-red-500 mt-1">{errors.employeeId}</p>}
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-500">Time In</label>
+            <label className="text-xs font-semibold text-teal-600">Time in</label>
             <input
               type="time"
               value={timeIn}
               onChange={(e) => setTimeIn(e.target.value)}
-              className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="mt-1 w-full border border-slate-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
             />
             {errors.timeIn && <p className="text-xs text-red-500 mt-1">{errors.timeIn}</p>}
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-500">Time Out</label>
+            <label className="text-xs font-semibold text-teal-600">Time out</label>
             <input
               type="time"
               value={timeOut}
               onChange={(e) => setTimeOut(e.target.value)}
-              className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="mt-1 w-full border border-slate-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
             />
             {errors.timeOut && <p className="text-xs text-red-500 mt-1">{errors.timeOut}</p>}
           </div>
         </div>
 
-        {/* Container sales table */}
         <div className="overflow-x-auto rounded-lg border border-slate-200">
           {pricesLoading ? (
             <div className="flex items-center justify-center py-10 text-slate-400 gap-2">
@@ -224,8 +220,9 @@ export default function SalesReportForm() {
           ) : (
             <table className="w-full text-sm min-w-[720px]">
               <thead>
-                <tr className="bg-blue-700 text-white text-xs uppercase tracking-wide">
+                <tr className="bg-teal-700 text-white text-xs uppercase tracking-wide">
                   <th className="text-left font-semibold py-3 px-3">Container Size</th>
+                  <th className="text-left font-semibold py-3 px-3">Description</th>
                   <th className="text-left font-semibold py-3 px-3 w-24">Pieces</th>
                   <th className="text-left font-semibold py-3 px-3 w-32">Price</th>
                   <th className="text-left font-semibold py-3 px-3 w-28">Pcs Sold</th>
@@ -239,6 +236,7 @@ export default function SalesReportForm() {
                     className={`${i % 2 === 0 ? "bg-slate-50" : "bg-white"} border-b border-slate-100 last:border-0`}
                   >
                     <td className="py-2.5 px-3 font-medium text-slate-700">{size.label}</td>
+                    <td className="py-2.5 px-3 text-teal-600 font-medium">{size.description || "—"}</td>
                     <td className="py-2.5 px-3 text-slate-500">{size.piecesLabel || "—"}</td>
                     <td className="py-2.5 px-3 text-slate-500">
                       {size.manualPrice ? (
@@ -251,11 +249,11 @@ export default function SalesReportForm() {
                             value={rows.ADD_ONS?.manualUnitPrice || ""}
                             onChange={(e) => updateRow("ADD_ONS", "manualUnitPrice", e.target.value)}
                             placeholder="Price"
-                            className="w-24 border border-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            className="w-24 border border-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
                           />
                         </div>
                       ) : (
-                        `₱${size.price.toFixed(2)}`
+                        <span className="text-teal-600 font-medium">₱{size.price.toFixed(2)}</span>
                       )}
                     </td>
                     <td className="py-2.5 px-3">
@@ -265,7 +263,7 @@ export default function SalesReportForm() {
                         value={rows[size.key]?.quantitySold || ""}
                         onChange={(e) => updateRow(size.key, "quantitySold", e.target.value)}
                         placeholder="0"
-                        className="w-20 border border-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        className="w-20 border border-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
                       />
                     </td>
                     <td className="py-2.5 px-3 text-right font-semibold text-slate-700">
@@ -273,11 +271,11 @@ export default function SalesReportForm() {
                     </td>
                   </tr>
                 ))}
-                <tr className="bg-blue-50 font-bold text-slate-800">
-                  <td className="py-3 px-3" colSpan={4}>
+                <tr className="bg-teal-50 font-bold text-teal-800">
+                  <td className="py-3 px-3" colSpan={5}>
                     TOTAL
                   </td>
-                  <td className="py-3 px-3 text-right">₱{grandTotal.toFixed(2)}</td>
+                  <td className="py-3 px-3 text-right text-teal-700">₱{grandTotal.toFixed(2)}</td>
                 </tr>
               </tbody>
             </table>
@@ -290,10 +288,10 @@ export default function SalesReportForm() {
           <button
             type="submit"
             disabled={submitting}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm disabled:opacity-60"
+            className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm disabled:opacity-60"
           >
             {submitting && <Loader2 size={14} className="animate-spin" />}
-            Submit Sales Report
+            Save Sales
           </button>
         </div>
       </form>

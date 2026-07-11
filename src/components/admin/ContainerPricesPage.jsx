@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import { Loader2, Pencil, Check, X, ShieldAlert } from "lucide-react";
+import { Loader2, Pencil, Check, X, ShieldAlert, MoreHorizontal } from "lucide-react";
 import { useContainerPrices } from "../../context/ContainerPriceContext";
 import { useCurrentUser } from "../../context/CurrentUserContext";
 
 export default function ContainerPricesPage() {
   const { isAdmin } = useCurrentUser();
-  const { prices, loading, usingFallback, updatePrice } = useContainerPrices();
+  const { allPrices, loading, usingFallback, updatePrice } = useContainerPrices();
   const [editingKey, setEditingKey] = useState(null);
   const [draftPrice, setDraftPrice] = useState("");
   const [savingKey, setSavingKey] = useState(null);
@@ -54,11 +54,16 @@ export default function ContainerPricesPage() {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-      <div>
-        <h2 className="text-lg font-bold text-slate-800">Container Prices</h2>
-        <p className="text-sm text-slate-400 mt-0.5">
-          Changes here automatically apply to the Sales Report form.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-teal-700">Container prices</h2>
+          <p className="text-sm text-slate-400 mt-0.5">
+            Changes here automatically apply to the sales report form
+          </p>
+        </div>
+        <button className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 shrink-0">
+          <MoreHorizontal size={18} />
+        </button>
       </div>
 
       {usingFallback && (
@@ -81,15 +86,16 @@ export default function ContainerPricesPage() {
         ) : (
           <table className="w-full text-sm min-w-[520px]">
             <thead>
-              <tr className="bg-blue-700 text-white text-xs uppercase tracking-wide">
+              <tr className="bg-teal-700 text-white text-xs uppercase tracking-wide">
                 <th className="text-left font-semibold py-3 px-3 rounded-l-lg">Container Size</th>
+                <th className="text-left font-semibold py-3 px-3">Description</th>
                 <th className="text-left font-semibold py-3 px-3">Pieces</th>
                 <th className="text-left font-semibold py-3 px-3 w-40">Price</th>
                 <th className="text-left font-semibold py-3 px-3 rounded-r-lg w-28">Action</th>
               </tr>
             </thead>
             <tbody>
-              {prices.map((row, i) => {
+              {allPrices.map((row, i) => {
                 const isEditing = editingKey === row.key;
                 const isSaving = savingKey === row.key;
                 return (
@@ -97,7 +103,13 @@ export default function ContainerPricesPage() {
                     key={row.key}
                     className={`${i % 2 === 0 ? "bg-slate-50" : "bg-white"} border-b border-slate-100 last:border-0`}
                   >
-                    <td className="py-2.5 px-3 font-medium text-slate-700">{row.label}</td>
+                    <td className="py-2.5 px-3 font-medium text-slate-700">
+                      <div>{row.label}</div>
+                      {row.active === false && (
+                        <div className="text-xs font-normal text-slate-400">(inactive)</div>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 text-teal-600 font-medium">{row.description}</td>
                     <td className="py-2.5 px-3 text-slate-500">{row.piecesLabel}</td>
                     <td className="py-2.5 px-3">
                       {isEditing ? (
@@ -110,7 +122,7 @@ export default function ContainerPricesPage() {
                             autoFocus
                             value={draftPrice}
                             onChange={(e) => setDraftPrice(e.target.value)}
-                            className="w-24 border border-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            className="w-24 border border-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
                           />
                         </div>
                       ) : (
@@ -123,7 +135,7 @@ export default function ContainerPricesPage() {
                           <button
                             onClick={() => saveEdit(row.key)}
                             disabled={isSaving}
-                            className="w-7 h-7 rounded-md bg-emerald-100 text-emerald-600 flex items-center justify-center hover:bg-emerald-200 disabled:opacity-60"
+                            className="w-7 h-7 rounded-md bg-teal-100 text-teal-700 flex items-center justify-center hover:bg-teal-200 disabled:opacity-60"
                           >
                             {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
                           </button>
@@ -137,7 +149,7 @@ export default function ContainerPricesPage() {
                       ) : (
                         <button
                           onClick={() => startEdit(row)}
-                          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100"
+                          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-teal-200 text-teal-700 hover:bg-teal-50"
                         >
                           <Pencil size={13} /> Edit
                         </button>

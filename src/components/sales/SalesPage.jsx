@@ -9,17 +9,17 @@ export default function SalesPage() {
   const { employees, branches } = useAccountManagement();
 
   const employeeName = (id) => {
-    const emp = employees.find((e) => e.id === id);
+    const emp = employees.find((e) => String(e.id) === String(id));
     return emp ? `${emp.firstName} ${emp.lastName}` : `#${id}`;
   };
-  const branchName = (id) => branches.find((b) => b.id === id)?.name ?? `#${id}`;
+  const branchName = (id) => branches.find((b) => String(b.id) === String(id))?.name ?? `#${id}`;
 
   return (
     <div className="space-y-6">
       <SalesReportForm />
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-        <h2 className="text-lg font-bold text-slate-800">Recent Sales Reports</h2>
+        <h2 className="text-xl font-bold text-teal-700">Recent sales</h2>
 
         <div className="mt-5 overflow-x-auto rounded-lg">
           {loading ? (
@@ -33,7 +33,7 @@ export default function SalesPage() {
           ) : (
             <table className="w-full text-sm min-w-[640px]">
               <thead>
-                <tr className="bg-blue-700 text-white text-xs uppercase tracking-wide">
+                <tr className="bg-teal-700 text-white text-xs uppercase tracking-wide">
                   <th className="text-left font-semibold py-3 px-3 rounded-l-lg">Date</th>
                   <th className="text-left font-semibold py-3 px-3">Branch</th>
                   <th className="text-left font-semibold py-3 px-3">Crew</th>
@@ -53,7 +53,7 @@ export default function SalesPage() {
                     <td className="py-3 px-3 text-slate-500">
                       {r.timeIn} – {r.timeOut}
                     </td>
-                    <td className="py-3 px-3 text-right font-semibold text-slate-700">
+                    <td className="py-3 px-3 text-right font-semibold text-teal-700">
                       ₱{Number(r.totalSales ?? 0).toFixed(2)}
                     </td>
                   </tr>

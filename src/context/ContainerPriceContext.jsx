@@ -1,36 +1,32 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { ContainerPriceAPI } from "../lib/api";
 
-// Static labels for display — these don't change via the API (only price does).
-// Keep in sync with the backend's ContainerSize enum.
-const SIZE_LABELS = {
-  SOLO: "SOLO 320CC/450ML",
-  DOUBLE: "DOUBLE 520CC/750ML",
-  DOZEN: "DOZEN 750CC/1000ML",
-  BARKADA: "BARKADA (RE2000ML)",
-  PAMILYA: "PAMILYA (RE3200ML)",
-  BARANGAY: "BARANGAY (RE4000ML)",
-};
-
 // Fallback so the Sales Report form and admin page aren't empty before the
-// backend endpoint exists / while it's being built.
+// backend endpoint exists / while it's being built. Mirrors the actual
+// backend columns: containerSize, description, pieces, price, active.
 const FALLBACK_PRICES = [
-  { containerSize: "SOLO", piecesLabel: "4 PCS", price: 49 },
-  { containerSize: "DOUBLE", piecesLabel: "8 PCS", price: 95 },
-  { containerSize: "DOZEN", piecesLabel: "12 PCS", price: 139 },
-  { containerSize: "BARKADA", piecesLabel: "20 PCS", price: 235 },
-  { containerSize: "PAMILYA", piecesLabel: "30 PCS", price: 349 },
-  { containerSize: "BARANGAY", piecesLabel: "50 PCS", price: 579 },
+  { containerSize: "SOLO", description: "320CC/450ML", pieces: 4, price: 49, active: true },
+  { containerSize: "DOUBLE", description: "520CC/750ML", pieces: 8, price: 95, active: true },
+  { containerSize: "DOZEN", description: "750CC/1000ML", pieces: 12, price: 139, active: true },
+  { containerSize: "BARKADA", description: "(RE2000ML)", pieces: 20, price: 235, active: true },
+  { containerSize: "PAMILYA", description: "(RE3200ML)", pieces: 30, price: 349, active: true },
+  { containerSize: "BARANGAY", description: "(RE4000ML)", pieces: 50, price: 579, active: true },
 ];
 
 // ADD_ONS is intentionally excluded — no fixed/admin price, entered
 // manually per sale on the Sales Report form.
-export const ADD_ONS_SIZE = { key: "ADD_ONS", label: "ADD ONS", manualPrice: true };
+export const ADD_ONS_SIZE = {
+  key: "ADD_ONS",
+  label: "ADD ONS",
+  description: null,
+  piecesLabel: null,
+  manualPrice: true,
+};
 
 const ContainerPriceContext = createContext(null);
 
 export function ContainerPriceProvider({ children }) {
-  const [prices, setPrices] = useState(FALLBACK_PRICES);
+  const [rawPrices, setRawPrices] = useState(FALLBACK_PRICES);
   const [loading, setLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(true);
 
@@ -38,11 +34,11 @@ export function ContainerPriceProvider({ children }) {
     setLoading(true);
     try {
       const res = await ContainerPriceAPI.list();
-      setPrices(res || []);
+      setRawPrices(res || []);
       setUsingFallback(false);
     } catch (err) {
       console.warn("GET /v1/container-prices not available yet, using fallback prices:", err.message);
-      setPrices(FALLBACK_PRICES);
+      setRawPrices(FALLBACK_PRICES);
       setUsingFallback(true);
     } finally {
       setLoading(false);
@@ -55,21 +51,35 @@ export function ContainerPriceProvider({ children }) {
 
   const updatePrice = useCallback(async (containerSize, price) => {
     const updated = await ContainerPriceAPI.updatePrice(containerSize, price);
-    setPrices((prev) =>
+    setRawPrices((prev) =>
       prev.map((p) => (p.containerSize === containerSize ? updated : p))
     );
     return updated;
   }, []);
 
-  // Prices with display labels attached, in a stable/sensible order.
-  const sizesWithLabels = prices.map((p) => ({
+  // Shape used by the Sales Report form and Admin page — keeps
+  // Container Size, Description, and Pieces as separate fields, matching
+  // the backend exactly, rather than merging them into one label.
+  const allPrices = rawPrices.map((p) => ({
     key: p.containerSize,
-    label: SIZE_LABELS[p.containerSize] || p.containerSize,
-    piecesLabel: p.piecesLabel,
+    label: p.containerSize,
+    description: p.description,
+    piecesLabel: p.pieces != null ? `${p.pieces} PCS` : null,
     price: Number(p.price),
+    active: p.active,
   }));
 
-  const value = { prices: sizesWithLabels, loading, usingFallback, refresh: load, updatePrice };
+  // Only active sizes should be sellable on the Sales Report form.
+  const activePrices = allPrices.filter((p) => p.active !== false);
+
+  const value = {
+    prices: activePrices, // for the Sales Report form (active only)
+    allPrices, // for the Admin page (everything, including inactive)
+    loading,
+    usingFallback,
+    refresh: load,
+    updatePrice,
+  };
 
   return (
     <ContainerPriceContext.Provider value={value}>{children}</ContainerPriceContext.Provider>
