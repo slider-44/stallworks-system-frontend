@@ -7,7 +7,7 @@ import Modal from "../ui/Modal";
 let customItemSeq = 0;
 
 const SalesTabContent = forwardRef(function SalesTabContent(
-  { date, branchId, employeeId, timeIn, timeOut, onGcashChange, onLiveTotalChange },
+  { date, branchId, employeeId, timeIn, timeOut, onGcashChange, onLiveTotalChange, onSaved },
   ref
 ) {
   const { addSalesReport } = useSales();
@@ -120,6 +120,7 @@ const SalesTabContent = forwardRef(function SalesTabContent(
         lineItems: buildLineItems(),
       });
       setSuccess(true);
+      onSaved?.();
       return { ok: true };
     } catch (err) {
       setApiError(err.message);
