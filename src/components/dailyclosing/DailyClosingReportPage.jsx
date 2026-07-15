@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Search, ClipboardList, Calendar, Building2, Users, ShoppingCart, FileText, Wallet } from "lucide-react";
+import { Search, ClipboardList, Calendar, Building2, Users, Clock, ShoppingCart, Wallet, ReceiptText, ArrowRight, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { useAccountManagement } from "../../context/AccountManagementContext";
 import { useSales } from "../../context/SalesContext";
 import { useExpenses } from "../../context/ExpenseContext";
@@ -7,15 +7,10 @@ import { useCashSummary } from "../../context/CashSummaryContext";
 import SalesTabContent from "./SalesTabContent";
 import CashCountTabContent from "./CashCountTabContent";
 import ExpensesTab from "../sales/ExpensesTab";
-import LiveSummarySidebar from "./LiveSummarySidebar";
-import RemittanceSidebar from "./RemittanceSidebar";
+import LiveSummaryTop from "./LiveSummaryTop";
+import CashCountSummaryBar from "./CashCountSummaryBar";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
-const TABS = [
-  { key: "sales", label: "Sales", icon: ShoppingCart },
-  { key: "expenses", label: "Expenses", icon: FileText },
-  { key: "cashcount", label: "Cash Count", icon: Wallet },
-];
 
 export default function DailyClosingReportPage() {
   const { employees, branches } = useAccountManagement();
@@ -26,7 +21,11 @@ export default function DailyClosingReportPage() {
   const [date, setDate] = useState(todayISO());
   const [branchId, setBranchId] = useState("");
   const [employeeId, setEmployeeId] = useState("");
-  const [activeTab, setActiveTab] = useState("sales");
+  const [timeIn, setTimeIn] = useState("");
+  const [timeOut, setTimeOut] = useState("");
+
+  // "main" = Sales + Expenses side by side. "cashcount" = Cash Count, full width.
+  const [activeView, setActiveView] = useState("main");
 
   const [pettyCashYesterday, setPettyCashYesterday] = useState("");
   const [gcash, setGcash] = useState("");
@@ -62,9 +61,6 @@ export default function DailyClosingReportPage() {
     [salesReports, date, branchId]
   );
 
-  // Prefer the live, in-progress total from the Sales tab while typing —
-  // falls back to whatever's already saved (e.g. right after a page
-  // reload, before the Sales tab has been touched this session).
   const totalSales = liveSalesTotal > 0 ? liveSalesTotal : persistedSalesTotal;
 
   const totalExpenses = useMemo(
@@ -75,6 +71,10 @@ export default function DailyClosingReportPage() {
     [expenses, date, branchId]
   );
 
+  const employeeName = useMemo(() => {
+    const emp = employees.find((e) => String(e.id) === String(employeeId));
+    return emp ? `${emp.firstName} ${emp.lastName}` : "";
+  }, [employees, employeeId]);
 
   return (
     <div>
@@ -95,9 +95,9 @@ export default function DailyClosingReportPage() {
           </button>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 mt-4">
-          <div>
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 mb-1">
+        <div className="flex flex-wrap gap-4 mt-4">
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
               <Calendar size={13} /> Date
             </label>
             <input
@@ -107,14 +107,14 @@ export default function DailyClosingReportPage() {
               className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors"
             />
           </div>
-          <div>
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 mb-1">
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
               <Building2 size={13} /> Branch
             </label>
             <select
               value={branchId}
               onChange={(e) => setBranchId(e.target.value)}
-              className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors min-w-[160px]"
+              className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors min-w-[150px]"
             >
               <option value="">Select branch</option>
               {branches.map((b) => (
@@ -124,14 +124,14 @@ export default function DailyClosingReportPage() {
               ))}
             </select>
           </div>
-          <div>
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 mb-1">
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
               <Users size={13} /> Crew
             </label>
             <select
               value={employeeId}
               onChange={(e) => setEmployeeId(e.target.value)}
-              className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors min-w-[160px]"
+              className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors min-w-[150px]"
             >
               <option value="">Select crew</option>
               {employees.map((emp) => (
@@ -141,79 +141,177 @@ export default function DailyClosingReportPage() {
               ))}
             </select>
           </div>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
+              <Clock size={13} /> Time In
+            </label>
+            <input
+              type="time"
+              value={timeIn}
+              onChange={(e) => setTimeIn(e.target.value)}
+              className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
+              <Clock size={13} /> Time Out
+            </label>
+            <input
+              type="time"
+              value={timeOut}
+              onChange={(e) => setTimeOut(e.target.value)}
+              className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Two-column: main content + sticky sidebar */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-          <div className="flex gap-2 mb-5">
-            {TABS.map((tab) => {
-              const Icon = tab.icon;
-              const active = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
-                    active ? "bg-teal-700 text-white shadow-sm" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                  }`}
-                >
-                  <Icon size={15} /> {tab.label}
-                </button>
-              );
-            })}
+      {/* Summary — full breakdown on step 1, condensed on step 2 */}
+      <div className="mb-5">
+        {activeView === "main" ? (
+          <LiveSummaryTop
+            date={date}
+            timeIn={timeIn}
+            timeOut={timeOut}
+            employeeName={employeeName}
+            totalSales={totalSales}
+            totalExpenses={totalExpenses}
+            pettyCashYesterday={pettyCashYesterday}
+            onPettyCashYesterdayChange={setPettyCashYesterday}
+            gcash={gcash}
+            onGcashChange={setGcash}
+            actualCash={actualCash}
+          />
+        ) : (
+          <CashCountSummaryBar
+            expectedCash={totalSales + Number(pettyCashYesterday || 0) - totalExpenses}
+            actualCash={actualCash}
+            gcash={gcash}
+            pettyCashNextday={pettyCashNextday}
+          />
+        )}
+      </div>
+
+      {/* Step wizard: 1. Sales & Expenses -> 2. Cash Count */}
+      <div className="flex items-center gap-3 mb-5">
+        <button onClick={() => setActiveView("main")} className="flex items-center gap-2">
+          <span
+            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+              activeView === "main"
+                ? "bg-teal-700 text-white"
+                : "bg-emerald-100 text-emerald-700"
+            }`}
+          >
+            {activeView === "cashcount" ? <CheckCircle2 size={15} /> : "1"}
+          </span>
+          <span className={`text-sm font-semibold ${activeView === "main" ? "text-teal-700" : "text-slate-500"}`}>
+            Sales &amp; Expenses
+          </span>
+        </button>
+        <div className="w-10 h-px bg-slate-200" />
+        <button onClick={() => setActiveView("cashcount")} className="flex items-center gap-2">
+          <span
+            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+              activeView === "cashcount" ? "bg-teal-700 text-white" : "bg-slate-200 text-slate-500"
+            }`}
+          >
+            2
+          </span>
+          <span className={`text-sm font-semibold ${activeView === "cashcount" ? "text-teal-700" : "text-slate-400"}`}>
+            Cash Count
+          </span>
+        </button>
+      </div>
+
+      {/* Sales + Expenses side by side */}
+      <div style={{ display: activeView === "main" ? "grid" : "none" }} className="grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <SalesTabContent
+            ref={salesTabRef}
+            date={date}
+            branchId={branchId}
+            employeeId={employeeId}
+            timeIn={timeIn}
+            timeOut={timeOut}
+            onGcashChange={setGcash}
+            onLiveTotalChange={setLiveSalesTotal}
+          />
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <ExpensesTab date={date} branchId={branchId} />
+        </div>
+      </div>
+
+      {activeView === "main" && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mt-5 flex flex-col sm:flex-row items-center gap-4">
+          <div className="flex items-center gap-3 flex-1">
+            <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+              <ShoppingCart size={16} className="text-emerald-700" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500">Gross Sales</p>
+              <p className="text-lg font-bold text-emerald-700">₱{totalSales.toFixed(2)}</p>
+              <p className="text-xs text-slate-400">Total sales amount</p>
+            </div>
           </div>
 
-          <div>
-            <div style={{ display: activeTab === "sales" ? "block" : "none" }}>
-              <SalesTabContent
-                ref={salesTabRef}
-                date={date}
-                branchId={branchId}
-                employeeId={employeeId}
-                onGcashChange={setGcash}
-                onLiveTotalChange={setLiveSalesTotal}
-              />
+          <div className="hidden sm:block w-px h-10 bg-slate-100" />
+
+          <div className="flex items-center gap-3 flex-1">
+            <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+              <ReceiptText size={16} className="text-red-600" />
             </div>
-            <div style={{ display: activeTab === "expenses" ? "block" : "none" }}>
-              <ExpensesTab date={date} branchId={branchId} />
+            <div>
+              <p className="text-xs font-semibold text-slate-500">Total Expenses</p>
+              <p className="text-lg font-bold text-red-600">₱{totalExpenses.toFixed(2)}</p>
+              <p className="text-xs text-slate-400">Total expenses amount</p>
             </div>
-            <div style={{ display: activeTab === "cashcount" ? "block" : "none" }}>
-              <CashCountTabContent
-                ref={cashCountTabRef}
-                date={date}
-                branchId={branchId}
-                pettyCashYesterday={pettyCashYesterday}
-                gcash={gcash}
-                pettyCashNextday={pettyCashNextday}
-                onActualCashChange={setActualCash}
-              />
+          </div>
+
+          <div className="hidden sm:block w-px h-10 bg-slate-100" />
+
+          <div className="flex items-center gap-3 flex-1">
+            <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+              <Wallet size={16} className="text-indigo-600" />
             </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500">Expected Cash</p>
+              <p className="text-lg font-bold text-indigo-600">
+                ₱{(totalSales + Number(pettyCashYesterday || 0) - totalExpenses).toFixed(2)}
+              </p>
+              <p className="text-xs text-slate-400">Gross Sales − Expenses</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-end shrink-0">
+            <button
+              onClick={() => setActiveView("cashcount")}
+              className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm"
+            >
+              Continue to Cash Count <ArrowRight size={15} />
+            </button>
+            <p className="flex items-center gap-1 text-xs text-slate-400 mt-1.5">
+              <ShieldCheck size={12} /> Your data is saved automatically
+            </p>
           </div>
         </div>
+      )}
 
-        <div className="lg:col-span-1">
-          {activeTab === "cashcount" ? (
-            <RemittanceSidebar
-              actualCash={actualCash}
-              gcash={gcash}
-              pettyCashNextday={pettyCashNextday}
-              onPettyCashNextdayChange={setPettyCashNextday}
-              onEdit={() => console.log("Edit remittance — not wired up yet")}
-              onExport={() => console.log("Export remittance — not wired up yet")}
-            />
-          ) : (
-            <LiveSummarySidebar
-              totalSales={totalSales}
-              totalExpenses={totalExpenses}
-              pettyCashYesterday={pettyCashYesterday}
-              onPettyCashYesterdayChange={setPettyCashYesterday}
-              gcash={gcash}
-              onGcashChange={setGcash}
-              actualCash={actualCash}
-            />
-          )}
+      {/* Cash Count, full width */}
+      <div style={{ display: activeView === "cashcount" ? "block" : "none" }}>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <CashCountTabContent
+            ref={cashCountTabRef}
+            date={date}
+            branchId={branchId}
+            pettyCashYesterday={pettyCashYesterday}
+            gcash={gcash}
+            onGcashChange={setGcash}
+            pettyCashNextday={pettyCashNextday}
+            onPettyCashNextdayChange={setPettyCashNextday}
+            onActualCashChange={setActualCash}
+            onBack={() => setActiveView("main")}
+          />
         </div>
       </div>
     </div>
