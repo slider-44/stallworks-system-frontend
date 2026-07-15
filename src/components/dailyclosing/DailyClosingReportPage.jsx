@@ -8,7 +8,6 @@ import SalesTabContent from "./SalesTabContent";
 import CashCountTabContent from "./CashCountTabContent";
 import ExpensesTab from "../sales/ExpensesTab";
 import LiveSummaryTop from "./LiveSummaryTop";
-import CashCountSummaryBar from "./CashCountSummaryBar";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -166,9 +165,12 @@ export default function DailyClosingReportPage() {
         </div>
       </div>
 
-      {/* Summary — full breakdown on step 1, condensed on step 2 */}
-      <div className="mb-5">
-        {activeView === "main" ? (
+      {/* Shift Reconciliation — only shown on Cash Count, since that's the
+          one point where Sales, Expenses, and Cash are all real. Step 1
+          relies on the footer bar below instead (Gross Sales / Total
+          Expenses / Expected Cash), since Actual Cash doesn't exist yet. */}
+      {activeView === "cashcount" && (
+        <div className="mb-5">
           <LiveSummaryTop
             date={date}
             timeIn={timeIn}
@@ -182,15 +184,8 @@ export default function DailyClosingReportPage() {
             onGcashChange={setGcash}
             actualCash={actualCash}
           />
-        ) : (
-          <CashCountSummaryBar
-            expectedCash={totalSales + Number(pettyCashYesterday || 0) - totalExpenses}
-            actualCash={actualCash}
-            gcash={gcash}
-            pettyCashNextday={pettyCashNextday}
-          />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Step wizard: 1. Sales & Expenses -> 2. Cash Count */}
       <div className="flex items-center gap-3 mb-5">
