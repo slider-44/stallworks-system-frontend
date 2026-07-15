@@ -2,13 +2,8 @@ import React, { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
-  Package,
-  ShoppingCart,
-  MessageSquare,
-  Bell,
-  Settings,
-  LogIn,
-  UserPlus,
+  ShoppingBag,
+  Boxes,
   ChevronRight,
   ChevronDown,
   LogOut,
@@ -22,6 +17,17 @@ import { useCurrentUser } from "../../context/CurrentUserContext";
 function buildNavSections(isAdmin) {
   const sections = [
     { label: "Dashboard", icon: LayoutDashboard, to: "/" },
+    { label: "Daily Closing Report", icon: ClipboardList, to: "/daily-closing-report" },
+    {
+      label: "Sales Management",
+      icon: ShoppingBag,
+      children: [{ label: "Sales History" }, { label: "Sales Reports" }],
+    },
+    {
+      label: "Inventory Management",
+      icon: Boxes,
+      children: [{ label: "Stock Levels" }, { label: "Container Types" }],
+    },
     {
       label: "Account Management",
       icon: Users2,
@@ -30,38 +36,18 @@ function buildNavSections(isAdmin) {
         { label: "Access", to: "/access" },
       ],
     },
-    { label: "Daily Closing Report", icon: ClipboardList, to: "/daily-closing-report" },
   ];
 
   if (isAdmin) {
+    // Divider marks the boundary between daily-workflow items above and
+    // admin/setup items below — same items, just rarely touched.
+    sections.push({ divider: true });
     sections.push({
       label: "Admin",
       icon: ShieldCheck,
       children: [{ label: "Container Prices", to: "/admin/container-prices" }],
     });
   }
-
-  sections.push(
-    {
-      label: "Products",
-      icon: Package,
-      children: [{ label: "All Products" }, { label: "Add Product" }, { label: "Categories" }],
-    },
-    {
-      label: "Orders",
-      icon: ShoppingCart,
-      children: [{ label: "Order List" }, { label: "Order Details" }, { label: "Invoices" }],
-    },
-    { label: "Messages", icon: MessageSquare, children: [{ label: "Inbox" }, { label: "Sent" }] },
-    { label: "Notifications", icon: Bell, children: [{ label: "All" }, { label: "Unread" }] },
-    {
-      label: "Settings",
-      icon: Settings,
-      children: [{ label: "Profile" }, { label: "Account" }, { label: "Preferences" }],
-    },
-    { label: "Login", icon: LogIn },
-    { label: "Sign Up", icon: UserPlus }
-  );
 
   return sections;
 }
@@ -178,9 +164,13 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-3">
-        {navSections.map((item, idx) => (
-          <SidebarItem key={idx} item={item} index={idx} openIndex={openIndex} setOpenIndex={setOpenIndex} />
-        ))}
+        {navSections.map((item, idx) =>
+          item.divider ? (
+            <hr key={idx} className="my-3 border-white/10" />
+          ) : (
+            <SidebarItem key={idx} item={item} index={idx} openIndex={openIndex} setOpenIndex={setOpenIndex} />
+          )
+        )}
       </nav>
 
       <div className="p-4 border-t border-white/10">
