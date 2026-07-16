@@ -40,17 +40,19 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
     }
   }, [current]);
 
-  const actualCash = useMemo(
+  // Total Cash = physical currency only (Bills + Coins). Petty Cash and
+  // GCash are separate categories, not "cash counted" — they feed into
+  // the Amount to Remit calculation on the Shift Reconciliation panel
+  // instead, not this total.
+  const totalCash = useMemo(
     () => ALL_DENOMINATIONS.reduce((sum, d) => sum + d * (Number(counts[d]) || 0), 0),
     [counts]
   );
 
   useEffect(() => {
-    onActualCashChange(actualCash);
+    onActualCashChange(totalCash);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actualCash]);
-
-  const totalRemittance = actualCash + Number(gcash || 0) - Number(pettyCashNextday || 0);
+  }, [totalCash]);
 
   const money = (n) =>
     `₱${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -186,15 +188,15 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
 
           <div className="bg-emerald-50 rounded-xl p-3.5 flex items-center justify-between">
             <p className="text-sm font-bold text-emerald-700 uppercase tracking-wide">Total Cash</p>
-            <span className="text-xl font-extrabold text-emerald-700">{money(actualCash)}</span>
+            <span className="text-xl font-extrabold text-emerald-700">{money(totalCash)}</span>
           </div>
         </div>
 
-        {/* Right: Additional Items + Summary — narrower */}
+        {/* Right: Additional Items — narrower */}
         <div className="md:col-span-4">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Additional Items</p>
 
-          {/* Petty Cash */}
+          {/* Petty Cash — single value */}
           <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5 mb-3 max-w-sm mx-auto">
             <div className="flex items-center justify-between mb-2">
               <p className="flex items-center gap-1.5 text-sm font-bold text-amber-800">
@@ -229,7 +231,7 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
             </div>
           </div>
 
-          {/* GCash */}
+          {/* GCash — single value */}
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 mb-3 max-w-sm mx-auto">
             <div className="flex items-center justify-between mb-2">
               <p className="flex items-center gap-1.5 text-sm font-bold text-blue-700">
@@ -264,20 +266,9 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
             </div>
           </div>
 
-          {/* Summary */}
-          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mt-4 max-w-sm mx-auto">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Summary</p>
-            <div className="flex items-center justify-between py-1.5 text-sm">
-              <span className="text-slate-600">− Petty Cash</span>
-              <span className="font-medium text-red-500">{money(pettyCashNextday)}</span>
-            </div>
-            <div className="flex items-center justify-between pt-2 mt-1 border-t border-slate-200">
-              <span className="text-sm font-bold text-slate-900">
-                Total Remittance <span className="font-normal text-xs text-slate-400">(to be remitted)</span>
-              </span>
-              <span className="text-lg font-extrabold text-teal-700">{money(totalRemittance)}</span>
-            </div>
-          </div>
+          <p className="text-xs text-slate-400 px-1">
+            These feed the "Amount to Remit" figure on the Shift Reconciliation panel above.
+          </p>
         </div>
       </div>
 

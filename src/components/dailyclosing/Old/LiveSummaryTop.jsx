@@ -49,22 +49,10 @@ export default function LiveSummaryTop({
   gcash,
   onGcashChange,
   actualCash,
-  pettyCashNextday,
 }) {
-  // Expected Cash is now purely Gross Sales minus Expenses — Petty Cash
-  // is tracked entirely on the reconciliation side instead.
-  const expectedCash = totalSales - totalExpenses;
-
-  // Variance check stays based on raw Cash Counted + GCash Received —
-  // untouched by either Petty Cash line, since neither represents
-  // "money collected today" going missing.
+  const expectedCash = totalSales + Number(pettyCashYesterday || 0) - totalExpenses;
   const totalReceived = Number(actualCash || 0) + Number(gcash || 0);
   const variance = expectedCash - totalReceived;
-
-  // Amount to Remit is where both Petty Cash directions live: yesterday's
-  // leftover float adds to what you're holding, tomorrow's float
-  // subtracts from what actually gets handed over.
-  const amountToRemit = totalReceived + Number(pettyCashYesterday || 0) - Number(pettyCashNextday || 0);
 
   let status = "BALANCED";
   if (variance > 0.004) status = "SHORT";
@@ -95,37 +83,28 @@ export default function LiveSummaryTop({
   const money = (n) =>
     `₱${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const Row = ({ label, value, bold, tone }) => {
-    const color = tone === "red" ? "text-red-600" : tone === "green" ? "text-emerald-600" : "";
-    return (
-      <div className={`flex items-center justify-between py-1.5 text-sm ${bold ? "font-bold" : ""} ${bold && !tone ? "text-slate-900" : `text-slate-700 ${color}`}`}>
-        <span>{label}</span>
-        <span className={color}>{money(value)}</span>
-      </div>
-    );
-  };
+  const Row = ({ label, value, bold }) => (
+    <div className={`flex items-center justify-between py-1.5 text-sm ${bold ? "font-bold text-slate-900" : "text-slate-700"}`}>
+      <span>{label}</span>
+      <span>{money(value)}</span>
+    </div>
+  );
 
-  const EditableRow = ({ label, value, onChange, tone, bold }) => {
-    const color = tone === "red" ? "text-red-600" : tone === "green" ? "text-emerald-600" : "text-slate-700";
-    return (
-      <div className={`flex items-center justify-between py-1.5 text-sm ${bold ? "font-bold" : ""} ${color}`}>
-        <span>{label}</span>
-        <span className="flex items-center gap-0.5">
-          <span>₱</span>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onWheel={(e) => e.target.blur()}
-            placeholder="0.00"
-            className={`no-spinner w-20 text-right bg-transparent border-none focus:outline-none p-0 ${color} ${bold ? "font-bold" : ""}`}
-          />
-        </span>
-      </div>
-    );
-  };
+  const EditableRow = ({ label, value, onChange }) => (
+    <div className="flex items-center justify-between py-1.5 text-sm text-slate-700">
+      <span>{label}</span>
+      <input
+        type="number"
+        min="0"
+        step="0.01"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onWheel={(e) => e.target.blur()}
+        placeholder="0.00"
+        className="no-spinner w-20 text-right bg-transparent border-none focus:outline-none p-0"
+      />
+    </div>
+  );
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
@@ -151,72 +130,80 @@ export default function LiveSummaryTop({
         </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
-        {/* 1+2. Sales & Expense Summary — merged */}
-        <div className="bg-slate-50 rounded-xl p-4 flex flex-col">
-          <div className="flex items-center gap-4 mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-                <ShoppingCart size={16} className="text-emerald-700" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900 leading-tight">Sales &amp; Expenses</p>
-                <p className="text-xs text-slate-500 leading-tight">What we recorded and spent</p>
-              </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5">
+        {/* 1. Sales Summary */}
+        <div className="bg-emerald-50 rounded-xl p-4 flex flex-col">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+              <ShoppingCart size={16} className="text-emerald-700" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-900 leading-tight">1. Sales Summary</p>
+              <p className="text-xs text-slate-500 leading-tight">What we recorded</p>
             </div>
           </div>
 
-          <div>
-            <p className="text-sm font-bold text-slate-900">Gross Sales</p>
-            <p className="text-2xl font-extrabold text-emerald-700 mt-1">{money(totalSales)}</p>
-          </div>
+          <Row label="Gross Sales" value={totalSales} />
+          <EditableRow label="+ Petty Cash (Yesterday)" value={pettyCashYesterday} onChange={onPettyCashYesterdayChange} />
 
-          <div className="border-t border-slate-200 mt-2 pt-2">
-            <p className="text-sm font-bold text-slate-900">Total Expenses</p>
-            <p className="text-2xl font-extrabold text-red-600 mt-1">{money(totalExpenses)}</p>
-          </div>
-
-          <div className="border-t border-slate-200 mt-2 pt-2 flex-1">
+          <div className="border-t border-emerald-200 mt-2 pt-2 flex-1">
             <p className="flex items-center gap-1 text-sm font-bold text-slate-900">
               Recorded Sales (Expected Cash) <Info size={13} className="text-slate-400" />
             </p>
             <p className="text-2xl font-extrabold text-emerald-700 mt-1">{money(expectedCash)}</p>
           </div>
 
-          <div className="mt-3 text-xs text-slate-600 bg-slate-100 rounded-lg px-3 py-2">
-            Gross Sales minus Total Expenses.
+          <div className="mt-3 text-xs text-emerald-800 bg-emerald-100 rounded-lg px-3 py-2">
+            This is the expected cash you should have.
           </div>
         </div>
 
-        {/* 3. Cash Reconciliation — now also holds both Petty Cash lines */}
+        {/* 2. Expense Summary */}
+        <div className="bg-red-50 rounded-xl p-4 flex flex-col">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-9 h-9 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+              <ReceiptText size={16} className="text-red-600" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-900 leading-tight">2. Expense Summary</p>
+              <p className="text-xs text-slate-500 leading-tight">What we spent</p>
+            </div>
+          </div>
+
+          <Row label="Total Expenses" value={totalExpenses} />
+
+          <div className="border-t border-red-200 mt-2 pt-2 flex-1">
+            <p className="text-sm font-bold text-slate-900">Total Expenses</p>
+            <p className="text-2xl font-extrabold text-red-600 mt-1">{money(totalExpenses)}</p>
+          </div>
+
+          <div className="mt-3 text-xs text-red-800 bg-red-100 rounded-lg px-3 py-2">
+            Expenses reduce the cash on hand.
+          </div>
+        </div>
+
+        {/* 3. Cash Reconciliation */}
         <div className="bg-blue-50 rounded-xl p-4 flex flex-col">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
               <CreditCard size={16} className="text-blue-600" />
             </div>
             <div>
-              <p className="text-sm font-bold text-slate-900 leading-tight">Cash Reconciliation</p>
+              <p className="text-sm font-bold text-slate-900 leading-tight">3. Cash Reconciliation</p>
               <p className="text-xs text-slate-500 leading-tight">What we actually received</p>
             </div>
           </div>
 
-          <EditableRow label="+ Petty Cash (Yesterday)" value={pettyCashYesterday} onChange={onPettyCashYesterdayChange} tone="green" bold />
-          <Row label="Cash Counted" value={actualCash} bold />
-          <EditableRow label="+ GCash Received" value={gcash} onChange={onGcashChange} tone="green" bold />
+          <Row label="Cash Counted" value={actualCash} />
+          <EditableRow label="GCash Received" value={gcash} onChange={onGcashChange} />
 
-          <div className="border-t border-blue-200 mt-2 pt-2">
+          <div className="border-t border-blue-200 mt-2 pt-2 flex-1">
             <p className="text-sm font-bold text-slate-900">Total Received (Actual Cash)</p>
             <p className="text-2xl font-extrabold text-blue-600 mt-1">{money(totalReceived)}</p>
           </div>
 
-          <div className="border-t border-blue-200 mt-2 pt-2 flex-1">
-            <Row label="− Petty Cash (kept for tomorrow)" value={pettyCashNextday} tone="red" bold />
-            <p className="text-sm font-bold text-slate-900 mt-1">Amount to Remit</p>
-            <p className="text-2xl font-extrabold text-blue-700 mt-1">{money(amountToRemit)}</p>
-          </div>
-
           <div className="mt-3 text-xs text-blue-800 bg-blue-100 rounded-lg px-3 py-2">
-            Both Petty Cash lines only affect Amount to Remit below — not Expected Cash or the variance check.
+            This is the actual cash and GCash you counted.
           </div>
         </div>
       </div>
@@ -239,7 +226,7 @@ export default function LiveSummaryTop({
             <div>
               <p className="text-sm font-bold text-white">Expected Cash</p>
               <p className="text-lg font-extrabold text-white mt-0.5">{money(expectedCash)}</p>
-              <p className="text-xs text-white/70 mt-0.5">From Sales &amp; Expenses</p>
+              <p className="text-xs text-white/70 mt-0.5">From Sales Summary</p>
             </div>
             <div>
               <p className="text-sm font-bold text-white">Total Received</p>

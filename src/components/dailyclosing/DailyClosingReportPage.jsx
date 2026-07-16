@@ -194,6 +194,7 @@ export default function DailyClosingReportPage() {
             gcash={gcash}
             onGcashChange={setGcash}
             actualCash={actualCash}
+            pettyCashNextday={pettyCashNextday}
           />
         </div>
       )}
