@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Search, ClipboardList, Calendar, Building2, Users, Clock, ShoppingCart, Wallet, ReceiptText, ArrowRight, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Search, ClipboardList, Calendar, Building2, Users, Clock, ShoppingCart, Wallet, ReceiptText, ArrowRight, ShieldCheck, CheckCircle2, Save, Loader2 } from "lucide-react";
 import { useAccountManagement } from "../../context/AccountManagementContext";
 import { useSales } from "../../context/SalesContext";
 import { useExpenses } from "../../context/ExpenseContext";
@@ -8,7 +8,6 @@ import SalesTabContent from "./SalesTabContent";
 import CashCountTabContent from "./CashCountTabContent";
 import ExpensesTab from "../sales/ExpensesTab";
 import LiveSummaryTop from "./LiveSummaryTop";
-import CashCountSummaryBar from "./CashCountSummaryBar";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -34,7 +33,18 @@ export default function DailyClosingReportPage() {
   const [liveSalesTotal, setLiveSalesTotal] = useState(0);
 
   const salesTabRef = useRef(null);
+  const expensesTabRef = useRef(null);
   const cashCountTabRef = useRef(null);
+
+  const [salesSaved, setSalesSaved] = useState(false);
+  const [expensesSaved, setExpensesSaved] = useState(false);
+  const [footerSaving, setFooterSaving] = useState(false);
+
+  // A save from a previous date/branch shouldn't count for a new one.
+  useEffect(() => {
+    setSalesSaved(false);
+    setExpensesSaved(false);
+  }, [date, branchId]);
 
   useEffect(() => {
     loadCashSummary(date, branchId);
@@ -166,9 +176,12 @@ export default function DailyClosingReportPage() {
         </div>
       </div>
 
-      {/* Summary — full breakdown on step 1, condensed on step 2 */}
-      <div className="mb-5">
-        {activeView === "main" ? (
+      {/* Shift Reconciliation — only shown on Cash Count, since that's the
+          one point where Sales, Expenses, and Cash are all real. Step 1
+          relies on the footer bar below instead (Gross Sales / Total
+          Expenses / Expected Cash), since Actual Cash doesn't exist yet. */}
+      {activeView === "cashcount" && (
+        <div className="mb-5">
           <LiveSummaryTop
             date={date}
             timeIn={timeIn}
@@ -182,15 +195,8 @@ export default function DailyClosingReportPage() {
             onGcashChange={setGcash}
             actualCash={actualCash}
           />
-        ) : (
-          <CashCountSummaryBar
-            expectedCash={totalSales + Number(pettyCashYesterday || 0) - totalExpenses}
-            actualCash={actualCash}
-            gcash={gcash}
-            pettyCashNextday={pettyCashNextday}
-          />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Step wizard: 1. Sales & Expenses -> 2. Cash Count */}
       <div className="flex items-center gap-3 mb-5">
@@ -235,10 +241,16 @@ export default function DailyClosingReportPage() {
             timeOut={timeOut}
             onGcashChange={setGcash}
             onLiveTotalChange={setLiveSalesTotal}
+            onSaved={() => setSalesSaved(true)}
           />
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-          <ExpensesTab date={date} branchId={branchId} />
+          <ExpensesTab
+            ref={expensesTabRef}
+            date={date}
+            branchId={branchId}
+            onSaved={() => setExpensesSaved(true)}
+          />
         </div>
       </div>
 
@@ -283,15 +295,33 @@ export default function DailyClosingReportPage() {
             </div>
           </div>
 
-          <div className="flex flex-col items-end shrink-0">
-            <button
-              onClick={() => setActiveView("cashcount")}
-              className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm"
-            >
-              Continue to Cash Count <ArrowRight size={15} />
-            </button>
-            <p className="flex items-center gap-1 text-xs text-slate-400 mt-1.5">
-              <ShieldCheck size={12} /> Your data is saved automatically
+          <div className="flex flex-col items-end shrink-0 gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => {
+                  setFooterSaving(true);
+                  await salesTabRef.current?.submit();
+                  await expensesTabRef.current?.submit();
+                  setFooterSaving(false);
+                }}
+                disabled={footerSaving}
+                className="flex items-center gap-2 border border-teal-200 text-teal-700 hover:bg-teal-50 text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-60"
+              >
+                {footerSaving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                Save
+              </button>
+              <button
+                onClick={() => setActiveView("cashcount")}
+                disabled={!(salesSaved && expensesSaved)}
+                title={!(salesSaved && expensesSaved) ? "Save Sales and Expenses first" : ""}
+                className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-teal-700"
+              >
+                Continue to Cash Count <ArrowRight size={15} />
+              </button>
+            </div>
+            <p className="flex items-center gap-1 text-xs text-slate-400">
+              <ShieldCheck size={12} />
+              {salesSaved && expensesSaved ? "Saved — ready to continue" : "Save Sales and Expenses to continue"}
             </p>
           </div>
         </div>
