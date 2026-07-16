@@ -1,8 +1,9 @@
 import React from "react";
 import {
-  ShoppingCart,
-  ReceiptText,
+  Wallet,
   CreditCard,
+  Smartphone,
+  MinusCircle,
   Calendar,
   Clock,
   User,
@@ -10,6 +11,10 @@ import {
   AlertTriangle,
   CheckCircle2,
   RefreshCw,
+  FileText,
+  ArrowLeft,
+  RotateCcw,
+  Save,
 } from "lucide-react";
 
 const formatTime12 = (t) => {
@@ -19,14 +24,6 @@ const formatTime12 = (t) => {
   let hour12 = h % 12;
   if (hour12 === 0) hour12 = 12;
   return `${String(hour12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
-};
-
-const shiftLabel = (timeIn) => {
-  if (!timeIn) return "Shift";
-  const hour = Number(timeIn.split(":")[0]);
-  if (hour < 12) return "Morning Shift";
-  if (hour < 18) return "Afternoon Shift";
-  return "Evening Shift";
 };
 
 const formatDateLong = (dateStr) => {
@@ -44,88 +41,58 @@ export default function LiveSummaryTop({
   employeeName,
   totalSales,
   totalExpenses,
-  pettyCashYesterday,
-  onPettyCashYesterdayChange,
   gcash,
-  onGcashChange,
   actualCash,
   pettyCashNextday,
+  onBack,
 }) {
-  // Expected Cash is now purely Gross Sales minus Expenses — Petty Cash
-  // is tracked entirely on the reconciliation side instead.
+  // Expected Cash = Gross Sales − Total Expenses (no petty cash involved).
   const expectedCash = totalSales - totalExpenses;
 
-  // Variance check stays based on raw Cash Counted + GCash Received —
-  // untouched by either Petty Cash line, since neither represents
-  // "money collected today" going missing.
-  const totalReceived = Number(actualCash || 0) + Number(gcash || 0);
-  const variance = expectedCash - totalReceived;
+  const cashDrawerCount = Number(actualCash || 0);
+  const startingFloat = Number(pettyCashNextday || 0); // same field as "Float for Next Shift" below — shown twice on purpose
+  const gcashCollected = Number(gcash || 0);
+  const floatForNextShift = Number(pettyCashNextday || 0);
 
-  // Amount to Remit is where both Petty Cash directions live: yesterday's
-  // leftover float adds to what you're holding, tomorrow's float
-  // subtracts from what actually gets handed over.
-  const amountToRemit = totalReceived + Number(pettyCashYesterday || 0) - Number(pettyCashNextday || 0);
+  const totalFundsReceived = cashDrawerCount + startingFloat + gcashCollected;
+  const amountToRemit = totalFundsReceived - floatForNextShift;
+
+  const variance = amountToRemit - expectedCash;
 
   let status = "BALANCED";
-  if (variance > 0.004) status = "SHORT";
-  else if (variance < -0.004) status = "OVER";
+  if (variance > 0.004) status = "OVER";
+  else if (variance < -0.004) status = "SHORT";
 
   const statusConfig = {
-    BALANCED: {
-      bar: "bg-teal-800",
-      strip: "bg-teal-900",
-      icon: CheckCircle2,
-      message: "Your cash matches your recorded sales. You're ready to close the shift.",
-    },
-    SHORT: {
-      bar: "bg-red-800",
-      strip: "bg-red-900",
-      icon: AlertTriangle,
-      message: "You have a cash short. Please review your transactions and cash count before closing the shift.",
-    },
-    OVER: {
-      bar: "bg-amber-700",
-      strip: "bg-amber-800",
-      icon: AlertTriangle,
-      message: "You have a cash overage. Please review your transactions and cash count before closing the shift.",
-    },
+    BALANCED: { bg: "bg-emerald-50", border: "border-emerald-100", text: "text-emerald-700", icon: CheckCircle2 },
+    OVER: { bg: "bg-amber-50", border: "border-amber-100", text: "text-amber-700", icon: AlertTriangle },
+    SHORT: { bg: "bg-red-50", border: "border-red-100", text: "text-red-700", icon: AlertTriangle },
   }[status];
   const StatusIcon = statusConfig.icon;
+
+  const statusMessage = {
+    BALANCED: "Your cash matches your recorded sales. You're ready to close the shift.",
+    OVER: "You have a cash overage. Please review your transactions and cash count before closing the shift.",
+    SHORT: "You have a cash short. Please review your transactions and cash count before closing the shift.",
+  }[status];
 
   const money = (n) =>
     `₱${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const Row = ({ label, value, bold, tone }) => {
-    const color = tone === "red" ? "text-red-600" : tone === "green" ? "text-emerald-600" : "";
-    return (
-      <div className={`flex items-center justify-between py-1.5 text-sm ${bold ? "font-bold" : ""} ${bold && !tone ? "text-slate-900" : `text-slate-700 ${color}`}`}>
-        <span>{label}</span>
-        <span className={color}>{money(value)}</span>
+  const ReconciliationRow = ({ icon: Icon, iconColor, label, sub, value }) => (
+    <div className="flex items-start justify-between py-2.5">
+      <div className="flex items-center gap-2.5">
+        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${iconColor.bg}`}>
+          <Icon size={13} className={iconColor.text} />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-slate-900 leading-tight">{label}</p>
+          <p className="text-xs text-slate-400 leading-tight">{sub}</p>
+        </div>
       </div>
-    );
-  };
-
-  const EditableRow = ({ label, value, onChange, tone, bold }) => {
-    const color = tone === "red" ? "text-red-600" : tone === "green" ? "text-emerald-600" : "text-slate-700";
-    return (
-      <div className={`flex items-center justify-between py-1.5 text-sm ${bold ? "font-bold" : ""} ${color}`}>
-        <span>{label}</span>
-        <span className="flex items-center gap-0.5">
-          <span>₱</span>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onWheel={(e) => e.target.blur()}
-            placeholder="0.00"
-            className={`no-spinner w-20 text-right bg-transparent border-none focus:outline-none p-0 ${color} ${bold ? "font-bold" : ""}`}
-          />
-        </span>
-      </div>
-    );
-  };
+      <span className="text-sm font-semibold text-slate-800">{money(value)}</span>
+    </div>
+  );
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
@@ -138,7 +105,7 @@ export default function LiveSummaryTop({
             </span>
             <span className="text-slate-300">|</span>
             <span className="flex items-center gap-1.5">
-              <Clock size={14} /> {shiftLabel(timeIn)} ({formatTime12(timeIn)} – {formatTime12(timeOut)})
+              <Clock size={14} /> Shift {formatTime12(timeIn)} - {formatTime12(timeOut)}
             </span>
             <span className="text-slate-300">|</span>
             <span className="flex items-center gap-1.5">
@@ -151,46 +118,40 @@ export default function LiveSummaryTop({
         </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
-        {/* 1+2. Sales & Expense Summary — merged */}
-        <div className="bg-slate-50 rounded-xl p-4 flex flex-col">
-          <div className="flex items-center gap-4 mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-                <ShoppingCart size={16} className="text-emerald-700" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900 leading-tight">Sales &amp; Expenses</p>
-                <p className="text-xs text-slate-500 leading-tight">What we recorded and spent</p>
-              </div>
+      <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 mt-5">
+        {/* Expected Cash */}
+        <div className="sm:col-span-2 bg-emerald-50 rounded-xl p-4 flex flex-col">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+              <Wallet size={16} className="text-emerald-700" />
+            </div>
+            <div>
+              <p className="flex items-center gap-1 text-sm font-bold text-slate-900 leading-tight">
+                Expected Cash <Info size={12} className="text-slate-400" />
+              </p>
+              <p className="text-xs text-slate-500 leading-tight">From Sales &amp; Expenses</p>
             </div>
           </div>
 
-          <div>
-            <p className="text-sm font-bold text-slate-900">Gross Sales</p>
-            <p className="text-2xl font-extrabold text-emerald-700 mt-1">{money(totalSales)}</p>
-          </div>
+          <p className="text-2xl font-extrabold text-emerald-700 mt-2">{money(expectedCash)}</p>
 
-          <div className="border-t border-slate-200 mt-2 pt-2">
-            <p className="text-sm font-bold text-slate-900">Total Expenses</p>
-            <p className="text-2xl font-extrabold text-red-600 mt-1">{money(totalExpenses)}</p>
-          </div>
+          {/* Intentionally non-functional for now — modal/detail view not built yet. */}
+          <button
+            type="button"
+            onClick={() => {}}
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2 mt-3 w-fit hover:bg-slate-50"
+          >
+            <FileText size={13} /> View Sales &amp; Expenses Summary
+          </button>
 
-          <div className="border-t border-slate-200 mt-2 pt-2 flex-1">
-            <p className="flex items-center gap-1 text-sm font-bold text-slate-900">
-              Recorded Sales (Expected Cash) <Info size={13} className="text-slate-400" />
-            </p>
-            <p className="text-2xl font-extrabold text-emerald-700 mt-1">{money(expectedCash)}</p>
-          </div>
-
-          <div className="mt-3 text-xs text-slate-600 bg-slate-100 rounded-lg px-3 py-2">
-            Gross Sales minus Total Expenses.
+          <div className="mt-auto pt-3 text-xs text-emerald-800 bg-emerald-100 rounded-lg px-3 py-2">
+            Expected Cash is the amount that should be in the drawer based on your recorded sales and expenses.
           </div>
         </div>
 
-        {/* 3. Cash Reconciliation — now also holds both Petty Cash lines */}
-        <div className="bg-blue-50 rounded-xl p-4 flex flex-col">
-          <div className="flex items-center gap-2 mb-3">
+        {/* Cash Reconciliation */}
+        <div className="sm:col-span-3 bg-blue-50 rounded-xl p-4 flex flex-col">
+          <div className="flex items-center gap-2 mb-1">
             <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
               <CreditCard size={16} className="text-blue-600" />
             </div>
@@ -200,65 +161,139 @@ export default function LiveSummaryTop({
             </div>
           </div>
 
-          <EditableRow label="+ Petty Cash (Yesterday)" value={pettyCashYesterday} onChange={onPettyCashYesterdayChange} tone="green" bold />
-          <Row label="Cash Counted" value={actualCash} bold />
-          <EditableRow label="+ GCash Received" value={gcash} onChange={onGcashChange} tone="green" bold />
+          <div className="mt-1">
+            <ReconciliationRow
+              icon={Wallet}
+              iconColor={{ bg: "bg-slate-100", text: "text-slate-500" }}
+              label="Cash Drawer Count"
+              sub="From Cash Count"
+              value={cashDrawerCount}
+            />
+            <ReconciliationRow
+              icon={Wallet}
+              iconColor={{ bg: "bg-amber-100", text: "text-amber-600" }}
+              label="Starting Float (Petty Cash)"
+              sub="From Cash Count"
+              value={startingFloat}
+            />
+            <ReconciliationRow
+              icon={Smartphone}
+              iconColor={{ bg: "bg-blue-100", text: "text-blue-600" }}
+              label="GCash Collected"
+              sub="From Cash Count"
+              value={gcashCollected}
+            />
+          </div>
+
+          <div className="border-t border-blue-200 mt-1 pt-2 flex items-center justify-between gap-3">
+            <p className="flex items-center gap-1 text-sm font-bold text-slate-900">
+              Total Funds Received (Actual) <Info size={12} className="text-slate-400" />
+            </p>
+            <span className="text-2xl font-extrabold text-blue-600 shrink-0">{money(totalFundsReceived)}</span>
+          </div>
 
           <div className="border-t border-blue-200 mt-2 pt-2">
-            <p className="text-sm font-bold text-slate-900">Total Received (Actual Cash)</p>
-            <p className="text-2xl font-extrabold text-blue-600 mt-1">{money(totalReceived)}</p>
+            <div className="flex items-start justify-between py-1">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                  <MinusCircle size={13} className="text-slate-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900 leading-tight">Float for Next Shift (Petty Cash)</p>
+                  <p className="text-xs text-slate-400 leading-tight">To be kept for tomorrow</p>
+                </div>
+              </div>
+              <span className="text-sm font-semibold text-red-500">-{money(floatForNextShift)}</span>
+            </div>
           </div>
 
-          <div className="border-t border-blue-200 mt-2 pt-2 flex-1">
-            <Row label="− Petty Cash (kept for tomorrow)" value={pettyCashNextday} tone="red" bold />
-            <p className="text-sm font-bold text-slate-900 mt-1">Amount to Remit</p>
-            <p className="text-2xl font-extrabold text-blue-700 mt-1">{money(amountToRemit)}</p>
-          </div>
-
-          <div className="mt-3 text-xs text-blue-800 bg-blue-100 rounded-lg px-3 py-2">
-            Both Petty Cash lines only affect Amount to Remit below — not Expected Cash or the variance check.
+          <div className="mt-3 bg-blue-100 border border-blue-200 rounded-lg px-4 py-3 flex-1 flex items-center justify-between gap-3">
+            <div>
+              <p className="flex items-center gap-1 text-sm font-bold text-blue-800">
+                Amount to Remit <Info size={12} className="text-blue-400" />
+              </p>
+              <p className="text-xs text-blue-600">This is the amount to turn in after keeping the float.</p>
+            </div>
+            <span className="text-2xl font-extrabold text-blue-700 shrink-0">{money(amountToRemit)}</span>
           </div>
         </div>
       </div>
 
       {/* Cash Variance */}
-      <div className={`mt-4 rounded-xl overflow-hidden ${statusConfig.bar}`}>
-        <div className="p-5 flex flex-col sm:flex-row sm:items-center gap-5">
-          <div className="flex items-center gap-3 sm:pr-5 sm:border-r sm:border-white/20">
-            <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center shrink-0">
-              <StatusIcon size={20} className="text-white" />
+      <div className={`mt-4 rounded-xl p-5 border ${statusConfig.bg} ${statusConfig.border}`}>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+          <div className="flex items-center gap-3 sm:pr-5 sm:border-r sm:border-black/5">
+            <div className={`w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0 ${statusConfig.text}`}>
+              <StatusIcon size={20} />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-white/80">Cash Variance</p>
-              <p className="text-xl font-extrabold text-white">{status}</p>
-              <p className="text-2xl font-extrabold text-white">{money(Math.abs(variance))}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Cash Variance</p>
+              <p className={`text-xl font-extrabold ${statusConfig.text}`}>{status}</p>
+              <p className={`text-2xl font-extrabold ${statusConfig.text}`}>{money(Math.abs(variance))}</p>
             </div>
           </div>
 
-          <div className="flex-1 grid grid-cols-3 gap-4">
+          <div className="flex-1 flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-bold text-white">Expected Cash</p>
-              <p className="text-lg font-extrabold text-white mt-0.5">{money(expectedCash)}</p>
-              <p className="text-xs text-white/70 mt-0.5">From Sales &amp; Expenses</p>
+              <p className="text-sm font-bold text-slate-900">Expected Cash</p>
+              <p className="text-lg font-extrabold text-slate-900 mt-0.5">{money(expectedCash)}</p>
+              <p className="text-xs text-slate-500 mt-0.5">From Sales &amp; Expenses</p>
             </div>
+
+            <span className="text-2xl font-bold text-slate-400 shrink-0">−</span>
+
             <div>
-              <p className="text-sm font-bold text-white">Total Received</p>
-              <p className="text-lg font-extrabold text-white mt-0.5">{money(totalReceived)}</p>
-              <p className="text-xs text-white/70 mt-0.5">From Cash Reconciliation</p>
+              <p className="text-sm font-bold text-slate-900">Amount to Remit</p>
+              <p className="text-lg font-extrabold text-slate-900 mt-0.5">{money(amountToRemit)}</p>
+              <p className="text-xs text-slate-500 mt-0.5">From Cash Reconciliation</p>
             </div>
+
+            <span className="text-2xl font-bold text-slate-400 shrink-0">=</span>
+
             <div>
-              <p className="text-sm font-bold text-white">Variance (Expected − Received)</p>
-              <p className="text-lg font-extrabold text-white mt-0.5">
-                {variance >= 0 ? "" : "-"}
+              <p className="text-sm font-bold text-slate-900">Variance (Expected − Actual)</p>
+              <p className={`text-lg font-extrabold mt-0.5 ${statusConfig.text}`}>
+                {variance >= 0 ? "+" : "-"}
                 {money(Math.abs(variance))}
               </p>
             </div>
           </div>
         </div>
 
-        <div className={`flex items-center gap-2 px-5 py-2.5 text-xs text-white/90 ${statusConfig.strip}`}>
+        <div className={`flex items-center gap-2 mt-3 pt-3 border-t border-black/5 text-xs ${statusConfig.text}`}>
           <Info size={13} />
-          {statusConfig.message}
+          {statusMessage}
+        </div>
+      </div>
+
+      {/* Action row */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-5">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-sm font-semibold text-teal-700 border border-teal-200 rounded-lg px-4 py-2.5 hover:bg-teal-50"
+        >
+          <ArrowLeft size={14} /> Back to Cash Count
+        </button>
+        <div className="flex items-center gap-2">
+          {/* TODO: Reset behavior not yet defined — what exactly should
+              reset here, given the inputs live on the Cash Count step? */}
+          <button
+            type="button"
+            onClick={() => {}}
+            className="flex items-center gap-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-lg px-4 py-2.5 hover:bg-slate-50"
+          >
+            <RotateCcw size={14} /> Reset
+          </button>
+          {/* TODO: no "close shift" backend endpoint exists yet — this
+              currently doesn't persist anything beyond what Cash Count's
+              own Save already does. */}
+          <button
+            type="button"
+            onClick={() => {}}
+            className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm"
+          >
+            <Save size={15} /> Save &amp; Close Shift
+          </button>
         </div>
       </div>
     </div>
