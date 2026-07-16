@@ -97,13 +97,13 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
   useImperativeHandle(ref, () => ({ submit: handleSave }));
 
   const Stepper = ({ value, onChange }) => (
-    <div className="flex items-center justify-center gap-1.5">
+    <div className="flex items-center justify-center gap-1">
       <button
         type="button"
         onClick={() => onChange(value - 1)}
-        className="w-7 h-7 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100"
+        className="w-6 h-6 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 shrink-0"
       >
-        <Minus size={13} />
+        <Minus size={12} />
       </button>
       <input
         type="number"
@@ -111,14 +111,14 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
         value={value}
         onChange={(e) => onChange(Number(e.target.value) || 0)}
         onWheel={(e) => e.target.blur()}
-        className="no-spinner w-12 text-center font-bold text-teal-800 bg-teal-50 border-2 border-teal-200 rounded-md px-1 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300"
+        className="no-spinner w-10 text-center font-bold text-teal-800 bg-teal-50 border-2 border-teal-200 rounded-md px-0.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300"
       />
       <button
         type="button"
         onClick={() => onChange(value + 1)}
-        className="w-7 h-7 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100"
+        className="w-6 h-6 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 shrink-0"
       >
-        <Plus size={13} />
+        <Plus size={12} />
       </button>
     </div>
   );
@@ -126,22 +126,22 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
   const DenominationTable = ({ title, denoms }) => (
     <div className="mb-4">
       <p className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-1.5">{title}</p>
-      <table className="w-full text-sm">
+      <table className="w-full text-sm table-fixed">
         <thead>
           <tr className="text-xs text-slate-400 uppercase tracking-wide">
-            <th className="text-left font-semibold py-2">Denomination</th>
-            <th className="text-center font-semibold py-2">Count</th>
-            <th className="text-right font-semibold py-2">Subtotal</th>
+            <th className="text-left font-semibold py-2 w-[34%]">Denom</th>
+            <th className="text-center font-semibold py-2 w-[38%]">Count</th>
+            <th className="text-right font-semibold py-2 w-[28%]">Total</th>
           </tr>
         </thead>
         <tbody>
           {denoms.map((d) => (
             <tr key={d} className="border-t border-slate-100">
-              <td className="py-2.5 text-slate-700 font-medium">₱{d}</td>
+              <td className="py-2.5 text-slate-700 font-medium truncate">₱{d}</td>
               <td className="py-2.5">
                 <Stepper value={counts[d]} onChange={(v) => setCount(d, v)} />
               </td>
-              <td className="py-2.5 text-right font-semibold text-slate-800">
+              <td className="py-2.5 text-right font-semibold text-slate-800 truncate">
                 {money(d * (Number(counts[d]) || 0))}
               </td>
             </tr>
@@ -167,9 +167,9 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Left: Cash Count */}
-        <div>
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+        {/* Left: Cash Count — wider, needs more room for Bills/Coins */}
+        <div className="md:col-span-8">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-9 h-9 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
               <Wallet size={16} className="text-teal-700" />
@@ -177,8 +177,12 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
             <p className="text-sm font-bold text-slate-900 uppercase tracking-wide">Cash Count</p>
           </div>
 
-          <DenominationTable title="Bills" denoms={BILLS} />
-          <DenominationTable title="Coins" denoms={COINS} />
+          <div className="grid grid-cols-2 gap-8">
+            <DenominationTable title="Bills" denoms={BILLS} />
+            <div>
+              <DenominationTable title="Coins" denoms={COINS} />
+            </div>
+          </div>
 
           <div className="bg-emerald-50 rounded-xl p-3.5 flex items-center justify-between">
             <p className="text-sm font-bold text-emerald-700 uppercase tracking-wide">Total Cash</p>
@@ -186,12 +190,12 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
           </div>
         </div>
 
-        {/* Right: Additional Items + Summary */}
-        <div>
+        {/* Right: Additional Items + Summary — narrower */}
+        <div className="md:col-span-4">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Additional Items</p>
 
           {/* Petty Cash */}
-          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5 mb-3">
+          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5 mb-3 max-w-sm mx-auto">
             <div className="flex items-center justify-between mb-2">
               <p className="flex items-center gap-1.5 text-sm font-bold text-amber-800">
                 <Wallet size={14} /> Petty Cash (Starting Float)
@@ -203,24 +207,22 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
                 <Plus size={12} /> Add Petty Cash
               </button>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1">
-                <label className="text-xs text-slate-500">Amount (₱)</label>
-                <input
-                  id="petty-cash-nextday-input"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={pettyCashNextday}
-                  onChange={(e) => onPettyCashNextdayChange(e.target.value)}
-                  onWheel={(e) => e.target.blur()}
-                  placeholder="0.00"
-                  className="no-spinner mt-0.5 w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
-                />
-              </div>
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-slate-500 shrink-0">Amount (₱)</label>
+              <input
+                id="petty-cash-nextday-input"
+                type="number"
+                min="0"
+                step="0.01"
+                value={pettyCashNextday}
+                onChange={(e) => onPettyCashNextdayChange(e.target.value)}
+                onWheel={(e) => e.target.blur()}
+                placeholder="0.00"
+                className="no-spinner w-28 border border-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+              />
               <button
                 onClick={() => onPettyCashNextdayChange("")}
-                className="w-8 h-8 mt-4 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 shrink-0"
+                className="w-8 h-8 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 shrink-0"
               >
                 <Trash2 size={14} />
               </button>
@@ -228,7 +230,7 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
           </div>
 
           {/* GCash */}
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 mb-3">
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 mb-3 max-w-sm mx-auto">
             <div className="flex items-center justify-between mb-2">
               <p className="flex items-center gap-1.5 text-sm font-bold text-blue-700">
                 <CreditCard size={14} /> GCash
@@ -240,24 +242,22 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
                 <Plus size={12} /> Add GCash
               </button>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1">
-                <label className="text-xs text-slate-500">Amount (₱)</label>
-                <input
-                  id="gcash-input"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={gcash}
-                  onChange={(e) => onGcashChange(e.target.value)}
-                  onWheel={(e) => e.target.blur()}
-                  placeholder="0.00"
-                  className="no-spinner mt-0.5 w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
-                />
-              </div>
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-slate-500 shrink-0">Amount (₱)</label>
+              <input
+                id="gcash-input"
+                type="number"
+                min="0"
+                step="0.01"
+                value={gcash}
+                onChange={(e) => onGcashChange(e.target.value)}
+                onWheel={(e) => e.target.blur()}
+                placeholder="0.00"
+                className="no-spinner w-28 border border-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+              />
               <button
                 onClick={() => onGcashChange("")}
-                className="w-8 h-8 mt-4 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 shrink-0"
+                className="w-8 h-8 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 shrink-0"
               >
                 <Trash2 size={14} />
               </button>
@@ -265,16 +265,8 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
           </div>
 
           {/* Summary */}
-          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mt-4">
+          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mt-4 max-w-sm mx-auto">
             <p className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Summary</p>
-            <div className="flex items-center justify-between py-1.5 text-sm">
-              <span className="text-slate-600">Actual Cash (Bills &amp; Coins)</span>
-              <span className="font-medium text-slate-900">{money(actualCash)}</span>
-            </div>
-            <div className="flex items-center justify-between py-1.5 text-sm">
-              <span className="text-slate-600">+ GCash</span>
-              <span className="font-medium text-emerald-600">{money(gcash)}</span>
-            </div>
             <div className="flex items-center justify-between py-1.5 text-sm">
               <span className="text-slate-600">− Petty Cash</span>
               <span className="font-medium text-red-500">{money(pettyCashNextday)}</span>
