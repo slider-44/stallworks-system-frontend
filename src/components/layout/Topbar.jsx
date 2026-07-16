@@ -1,15 +1,15 @@
 import React from "react";
-import { LayoutDashboard, Search, Moon, Bell, ChevronDown } from "lucide-react";
+import { Menu, Search, Moon, Bell, ChevronDown } from "lucide-react";
 import { useCurrentUser } from "../../context/CurrentUserContext";
 import { ROLE_OPTIONS } from "../../context/AccountManagementContext";
 
-export default function Topbar() {
+export default function Topbar({ onMenuClick }) {
   const { role, setRole } = useCurrentUser();
 
   return (
     <header className="h-16 bg-teal-900 flex items-center gap-4 px-4 sm:px-6">
-      <button className="lg:hidden p-2 rounded-md text-white hover:bg-white/10">
-        <LayoutDashboard size={18} />
+      <button onClick={onMenuClick} className="lg:hidden p-2 rounded-md text-white hover:bg-white/10 shrink-0">
+        <Menu size={20} />
       </button>
 
       <div className="flex-1 max-w-md relative">
@@ -60,7 +60,7 @@ export default function Topbar() {
             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-teal-900" />
           </div>
           <div className="hidden sm:block leading-tight text-left">
-            <p className="text-sm font-semibold text-white">Elizabeth Laguardia</p>
+            <p className="text-sm font-semibold text-white">Rinku Verma</p>
             <p className="text-xs text-teal-200/70">Administrator</p>
           </div>
           <ChevronDown size={14} className="hidden sm:block text-teal-200/70" />

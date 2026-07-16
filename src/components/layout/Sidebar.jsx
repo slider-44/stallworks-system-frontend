@@ -11,6 +11,7 @@ import {
   ClipboardList,
   ShieldCheck,
   ChefHat,
+  X,
 } from "lucide-react";
 import { useCurrentUser } from "../../context/CurrentUserContext";
 
@@ -133,26 +134,9 @@ function SidebarItem({ item, index, openIndex, setOpenIndex }) {
   );
 }
 
-export default function Sidebar() {
-  const { isAdmin } = useCurrentUser();
-  const navSections = buildNavSections(isAdmin);
-  const location = useLocation();
-
-  const findActiveGroupIndex = () =>
-    navSections.findIndex(
-      (item) => item.children && item.children.some((c) => c.to && location.pathname.startsWith(c.to))
-    );
-
-  const [openIndex, setOpenIndex] = useState(findActiveGroupIndex());
-
-  useEffect(() => {
-    const activeGroup = findActiveGroupIndex();
-    if (activeGroup !== -1) setOpenIndex(activeGroup);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
-
+function SidebarContent({ navSections, openIndex, setOpenIndex, onNavigate }) {
   return (
-    <aside className="hidden lg:flex w-64 flex-col bg-teal-900">
+    <>
       <div className="flex items-center gap-3 px-5 h-20 border-b border-white/10">
         <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
           <ChefHat size={20} className="text-white" />
@@ -163,7 +147,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-4 px-3">
+      <nav className="flex-1 overflow-y-auto py-4 px-3" onClick={onNavigate}>
         {navSections.map((item, idx) =>
           item.divider ? (
             <hr key={idx} className="my-3 border-white/10" />
@@ -178,6 +162,53 @@ export default function Sidebar() {
           <LogOut size={17} /> Logout
         </button>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export default function Sidebar({ mobileOpen, onClose }) {
+  const { isAdmin } = useCurrentUser();
+  const navSections = buildNavSections(isAdmin);
+  const location = useLocation();
+
+  const findActiveGroupIndex = () =>
+    navSections.findIndex(
+      (item) => item.children && item.children.some((c) => c.to && location.pathname.startsWith(c.to))
+    );
+
+  const [openIndex, setOpenIndex] = useState(findActiveGroupIndex());
+
+  useEffect(() => {
+    const activeGroup = findActiveGroupIndex();
+    if (activeGroup !== -1) setOpenIndex(activeGroup);
+    // Navigating anywhere closes the mobile/tablet drawer, same as most
+    // responsive nav patterns — no reason to leave it open after a tap.
+    onClose?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  return (
+    <>
+      {/* Permanent sidebar — desktop only (>=1024px), unchanged */}
+      <aside className="hidden lg:flex w-64 flex-col bg-teal-900">
+        <SidebarContent navSections={navSections} openIndex={openIndex} setOpenIndex={setOpenIndex} />
+      </aside>
+
+      {/* Mobile/tablet drawer — below 1024px, opened via Topbar's menu button */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
+          <aside className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-teal-900 flex flex-col shadow-2xl">
+            <button
+              onClick={onClose}
+              className="absolute top-5 right-3 w-8 h-8 rounded-full flex items-center justify-center text-teal-100/70 hover:bg-white/10 hover:text-white"
+            >
+              <X size={18} />
+            </button>
+            <SidebarContent navSections={navSections} openIndex={openIndex} setOpenIndex={setOpenIndex} />
+          </aside>
+        </div>
+      )}
+    </>
   );
 }
