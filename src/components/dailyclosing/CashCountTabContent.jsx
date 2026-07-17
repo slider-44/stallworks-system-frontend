@@ -11,6 +11,7 @@ import {
   Coins,
   Calendar,
   Clock,
+  Trash2,
 } from "lucide-react";
 import { useCashSummary } from "../../context/CashSummaryContext";
 
@@ -247,16 +248,26 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
               <Wallet size={14} /> Petty Cash (Starting Float)
             </p>
             <label className="text-xs text-slate-500">Amount (₱)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={pettyCashNextday}
-              onChange={(e) => onPettyCashNextdayChange(e.target.value)}
-              onWheel={(e) => e.target.blur()}
-              placeholder="0.00"
-              className="no-spinner mt-0.5 w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
-            />
+            <div className="flex items-center gap-2 mt-0.5">
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={pettyCashNextday}
+                onChange={(e) => onPettyCashNextdayChange(e.target.value)}
+                onWheel={(e) => e.target.blur()}
+                placeholder="0.00"
+                className="no-spinner flex-1 border border-slate-200 rounded-md px-2 py-1.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-200"
+              />
+              <button
+                type="button"
+                onClick={() => onPettyCashNextdayChange("")}
+                className="w-8 h-8 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 shrink-0"
+                title="Clear amount"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
             <Info
               size={14}
               className="absolute top-3.5 right-3.5 text-amber-400"
@@ -269,16 +280,26 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
               <CreditCard size={14} /> GCash
             </p>
             <label className="text-xs text-slate-500">Amount (₱)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={gcash}
-              onChange={(e) => onGcashChange(e.target.value)}
-              onWheel={(e) => e.target.blur()}
-              placeholder="0.00"
-              className="no-spinner mt-0.5 w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
-            />
+            <div className="flex items-center gap-2 mt-0.5">
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={gcash}
+                onChange={(e) => onGcashChange(e.target.value)}
+                onWheel={(e) => e.target.blur()}
+                placeholder="0.00"
+                className="no-spinner flex-1 border border-slate-200 rounded-md px-2 py-1.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-200"
+              />
+              <button
+                type="button"
+                onClick={() => onGcashChange("")}
+                className="w-8 h-8 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 shrink-0"
+                title="Clear amount"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
             <Info
               size={14}
               className="absolute top-3.5 right-3.5 text-blue-400"
