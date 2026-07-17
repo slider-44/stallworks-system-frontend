@@ -88,114 +88,93 @@ export default function DailyClosingReportPage() {
 
   return (
     <div>
-      {/* Header: Date / Branch / Crew */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-5">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-teal-700 flex items-center justify-center shrink-0">
-              <ClipboardList size={18} className="text-white" />
+      {/* Header: Date / Branch / Crew — only on Sales & Expenses */}
+      {activeView === "main" && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-5">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-teal-700 flex items-center justify-center shrink-0">
+                <ClipboardList size={18} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Daily Closing Report</h2>
+                <p className="text-xs text-slate-400">Sales, expenses, and cash count for one day, one branch.</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Daily Closing Report</h2>
-              <p className="text-xs text-slate-400">Sales, expenses, and cash count for one day, one branch.</p>
+            <button className="h-11 flex items-center gap-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold px-4 rounded-lg shadow-sm shrink-0">
+              <Search size={15} /> Search
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-4 mt-4">
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
+                <Calendar size={13} /> Date
+              </label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
+                <Building2 size={13} /> Branch
+              </label>
+              <select
+                value={branchId}
+                onChange={(e) => setBranchId(e.target.value)}
+                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors min-w-[150px]"
+              >
+                <option value="">Select branch</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
+                <Users size={13} /> Crew
+              </label>
+              <select
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
+                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors min-w-[150px]"
+              >
+                <option value="">Select crew</option>
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.firstName} {emp.lastName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
+                <Clock size={13} /> Time In
+              </label>
+              <input
+                type="time"
+                value={timeIn}
+                onChange={(e) => setTimeIn(e.target.value)}
+                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
+                <Clock size={13} /> Time Out
+              </label>
+              <input
+                type="time"
+                value={timeOut}
+                onChange={(e) => setTimeOut(e.target.value)}
+                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors"
+              />
             </div>
           </div>
-          <button className="h-11 flex items-center gap-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold px-4 rounded-lg shadow-sm shrink-0">
-            <Search size={15} /> Search
-          </button>
-        </div>
-
-        <div className="flex flex-wrap gap-4 mt-4">
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
-              <Calendar size={13} /> Date
-            </label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
-              <Building2 size={13} /> Branch
-            </label>
-            <select
-              value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
-              className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors min-w-[150px]"
-            >
-              <option value="">Select branch</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
-              <Users size={13} /> Crew
-            </label>
-            <select
-              value={employeeId}
-              onChange={(e) => setEmployeeId(e.target.value)}
-              className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors min-w-[150px]"
-            >
-              <option value="">Select crew</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.firstName} {emp.lastName}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
-              <Clock size={13} /> Time In
-            </label>
-            <input
-              type="time"
-              value={timeIn}
-              onChange={(e) => setTimeIn(e.target.value)}
-              className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
-              <Clock size={13} /> Time Out
-            </label>
-            <input
-              type="time"
-              value={timeOut}
-              onChange={(e) => setTimeOut(e.target.value)}
-              className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Shift Reconciliation — only shown on Cash Count, since that's the
-          one point where Sales, Expenses, and Cash are all real. Step 1
-          relies on the footer bar below instead (Gross Sales / Total
-          Expenses / Expected Cash), since Actual Cash doesn't exist yet. */}
-      {activeView === "cashcount" && (
-        <div className="mb-5">
-          <LiveSummaryTop
-            date={date}
-            timeIn={timeIn}
-            timeOut={timeOut}
-            employeeName={employeeName}
-            totalSales={totalSales}
-            totalExpenses={totalExpenses}
-            pettyCashYesterday={pettyCashYesterday}
-            onPettyCashYesterdayChange={setPettyCashYesterday}
-            gcash={gcash}
-            onGcashChange={setGcash}
-            actualCash={actualCash}
-            pettyCashNextday={pettyCashNextday}
-          />
         </div>
       )}
 
@@ -330,10 +309,12 @@ export default function DailyClosingReportPage() {
 
       {/* Cash Count, full width */}
       <div style={{ display: activeView === "cashcount" ? "block" : "none" }}>
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <div className="mb-5">
           <CashCountTabContent
             ref={cashCountTabRef}
             date={date}
+            timeIn={timeIn}
+            timeOut={timeOut}
             branchId={branchId}
             pettyCashYesterday={pettyCashYesterday}
             gcash={gcash}
@@ -344,6 +325,23 @@ export default function DailyClosingReportPage() {
             onBack={() => setActiveView("main")}
           />
         </div>
+
+        {/* Shift Reconciliation — after Cash Count, since that's the one
+            point where Sales, Expenses, and Cash are all real. Step 1
+            relies on the footer bar instead (Gross Sales / Total Expenses
+            / Expected Cash), since Actual Cash doesn't exist there yet. */}
+        <LiveSummaryTop
+          date={date}
+          timeIn={timeIn}
+          timeOut={timeOut}
+          employeeName={employeeName}
+          totalSales={totalSales}
+          totalExpenses={totalExpenses}
+          gcash={gcash}
+          actualCash={actualCash}
+          pettyCashNextday={pettyCashNextday}
+          onBack={() => setActiveView("cashcount")}
+        />
       </div>
     </div>
   );

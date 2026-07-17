@@ -1,14 +1,17 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import {
-  CheckCircle2,
   Loader2,
   Save,
   Plus,
   Minus,
-  Trash2,
   RotateCcw,
   Wallet,
   CreditCard,
+  Info,
+  Coins,
+  Calendar,
+  Clock,
+  Trash2,
 } from "lucide-react";
 import { useCashSummary } from "../../context/CashSummaryContext";
 
@@ -16,8 +19,25 @@ const BILLS = [1000, 500, 200, 100, 50, 20];
 const COINS = [10, 5, 1];
 const ALL_DENOMINATIONS = [...BILLS, ...COINS];
 
+const formatTime12 = (t) => {
+  if (!t) return "--:--";
+  const [h, m] = t.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  let hour12 = h % 12;
+  if (hour12 === 0) hour12 = 12;
+  return `${String(hour12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
+};
+
+const formatDateLong = (dateStr) => {
+  if (!dateStr) return "";
+  const d = new Date(`${dateStr}T00:00:00`);
+  const full = d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const weekday = d.toLocaleDateString("en-US", { weekday: "short" });
+  return `${full} (${weekday})`;
+};
+
 const CashCountTabContent = forwardRef(function CashCountTabContent(
-  { date, branchId, pettyCashYesterday, gcash, onGcashChange, pettyCashNextday, onPettyCashNextdayChange, onActualCashChange, onBack },
+  { date, timeIn, timeOut, branchId, pettyCashYesterday, gcash, onGcashChange, pettyCashNextday, onPettyCashNextdayChange, onActualCashChange, onBack },
   ref
 ) {
   const { current, save } = useCashSummary();
@@ -40,10 +60,6 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
     }
   }, [current]);
 
-  // Total Cash = physical currency only (Bills + Coins). Petty Cash and
-  // GCash are separate categories, not "cash counted" — they feed into
-  // the Amount to Remit calculation on the Shift Reconciliation panel
-  // instead, not this total.
   const totalCash = useMemo(
     () => ALL_DENOMINATIONS.reduce((sum, d) => sum + d * (Number(counts[d]) || 0), 0),
     [counts]
@@ -53,6 +69,11 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
     onActualCashChange(totalCash);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalCash]);
+
+  // NOTE: additive quick-reference total shown here — different formula
+  // from Shift Reconciliation's "Amount to Remit" (which subtracts Petty
+  // Cash instead). Still flagged for the team to confirm which is correct.
+  const totalToRemit = totalCash + Number(pettyCashNextday || 0) + Number(gcash || 0);
 
   const money = (n) =>
     `₱${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -125,25 +146,27 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
     </div>
   );
 
-  const DenominationTable = ({ title, denoms }) => (
-    <div className="mb-4">
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-1.5">{title}</p>
+  const DenominationTable = ({ icon: Icon, title, denoms }) => (
+    <div>
+      <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
+        <Icon size={14} className="text-teal-600" /> {title}
+      </p>
       <table className="w-full text-sm table-fixed">
         <thead>
           <tr className="text-xs text-slate-400 uppercase tracking-wide">
-            <th className="text-left font-semibold py-2 w-[34%]">Denom</th>
+            <th className="text-left font-semibold py-2 w-[34%]">Denomination</th>
             <th className="text-center font-semibold py-2 w-[38%]">Count</th>
-            <th className="text-right font-semibold py-2 w-[28%]">Total</th>
+            <th className="text-right font-semibold py-2 w-[28%]">Amount</th>
           </tr>
         </thead>
         <tbody>
           {denoms.map((d) => (
             <tr key={d} className="border-t border-slate-100">
-              <td className="py-2.5 text-slate-700 font-medium truncate">₱{d}</td>
-              <td className="py-2.5">
+              <td className="py-3 text-slate-700 font-medium truncate">₱{d}</td>
+              <td className="py-3">
                 <Stepper value={counts[d]} onChange={(v) => setCount(d, v)} />
               </td>
-              <td className="py-2.5 text-right font-semibold text-slate-800 truncate">
+              <td className="py-3 text-right font-semibold text-slate-800 truncate">
                 {money(d * (Number(counts[d]) || 0))}
               </td>
             </tr>
@@ -155,12 +178,43 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
 
   return (
     <div>
+      {/* Header — plain, floats free, no card/border around it.
+          Cash Count label on the left, Shift Date/Time parallel on the right. */}
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
+            <Wallet size={18} className="text-teal-700" />
+          </div>
+          <div>
+            <p className="text-base font-bold text-slate-900 uppercase tracking-wide">Cash Count</p>
+            <p className="text-xs text-slate-500">Count the cash in your drawer at the end of your shift.</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-white border border-slate-100 rounded-lg px-3 py-2 shadow-sm">
+            <Calendar size={13} className="text-teal-600" />
+            <span className="text-xs text-slate-500">Shift Date</span>
+            <span className="text-sm font-semibold text-slate-800">{formatDateLong(date)}</span>
+          </div>
+          <div className="flex items-center gap-2 bg-white border border-slate-100 rounded-lg px-3 py-2 shadow-sm">
+            <Clock size={13} className="text-teal-600" />
+            <span className="text-xs text-slate-500">Shift Time</span>
+            <span className="text-sm font-semibold text-slate-800">
+              Shift {formatTime12(timeIn)} - {formatTime12(timeOut)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Bills + Coins and Additional Items now sit in their own separate
+          boxes, side by side, instead of one shared card. */}
       {apiError && (
         <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-4">{apiError}</div>
       )}
       {success && (
-        <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 mb-4">
-          <CheckCircle2 size={15} /> Cash count saved.
+        <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 mb-4">
+          Cash count saved.
         </div>
       )}
       {errors.header && (
@@ -170,49 +224,32 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-        {/* Left: Cash Count — wider, needs more room for Bills/Coins */}
-        <div className="md:col-span-8">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-9 h-9 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
-              <Wallet size={16} className="text-teal-700" />
-            </div>
-            <p className="text-sm font-bold text-slate-900 uppercase tracking-wide">Cash Count</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-8">
-            <DenominationTable title="Bills" denoms={BILLS} />
+        {/* Bills + Coins — own box */}
+        <div className="md:col-span-8 bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+            <DenominationTable icon={CreditCard} title="Bills" denoms={BILLS} />
             <div>
-              <DenominationTable title="Coins" denoms={COINS} />
+              <DenominationTable icon={Coins} title="Coins" denoms={COINS} />
+              <div className="bg-slate-50 rounded-lg px-4 py-3 flex items-center justify-between mt-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-teal-700">Subtotal Cash</p>
+                <span className="text-lg font-extrabold text-teal-700">{money(totalCash)}</span>
+              </div>
             </div>
-          </div>
-
-          <div className="bg-emerald-50 rounded-xl p-3.5 flex items-center justify-between">
-            <p className="text-sm font-bold text-emerald-700 uppercase tracking-wide">Total Cash</p>
-            <span className="text-xl font-extrabold text-emerald-700">{money(totalCash)}</span>
           </div>
         </div>
 
-        {/* Right: Additional Items — narrower */}
-        <div className="md:col-span-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Additional Items</p>
+        {/* Additional Items — own box */}
+        <div className="md:col-span-4 bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Additional Items</p>
+          <p className="text-xs text-slate-400 mb-3">Enter any additional amounts before ending your shift.</p>
 
-          {/* Petty Cash — single value */}
-          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5 mb-3 max-w-sm mx-auto">
-            <div className="flex items-center justify-between mb-2">
-              <p className="flex items-center gap-1.5 text-sm font-bold text-amber-800">
-                <Wallet size={14} /> Petty Cash (Starting Float)
-              </p>
-              <button
-                onClick={() => document.getElementById("petty-cash-nextday-input")?.focus()}
-                className="flex items-center gap-1 text-xs font-semibold text-teal-700 border border-teal-200 rounded-full px-3 py-1 hover:bg-teal-50"
-              >
-                <Plus size={12} /> Add Petty Cash
-              </button>
-            </div>
-            <div className="flex items-center gap-3">
-              <label className="text-xs text-slate-500 shrink-0">Amount (₱)</label>
+          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5 mb-3 relative">
+            <p className="flex items-center gap-1.5 text-sm font-bold text-amber-800 mb-2">
+              <Wallet size={14} /> Petty Cash (Starting Float)
+            </p>
+            <label className="text-xs text-slate-500">Amount (₱)</label>
+            <div className="flex items-center gap-2 mt-0.5">
               <input
-                id="petty-cash-nextday-input"
                 type="number"
                 min="0"
                 step="0.01"
@@ -220,34 +257,31 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
                 onChange={(e) => onPettyCashNextdayChange(e.target.value)}
                 onWheel={(e) => e.target.blur()}
                 placeholder="0.00"
-                className="no-spinner w-28 border border-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                className="no-spinner flex-1 border border-slate-200 rounded-md px-2 py-1.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-200"
               />
               <button
+                type="button"
                 onClick={() => onPettyCashNextdayChange("")}
                 className="w-8 h-8 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 shrink-0"
+                title="Clear amount"
               >
                 <Trash2 size={14} />
               </button>
             </div>
+            <Info
+              size={14}
+              className="absolute top-3.5 right-3.5 text-amber-400"
+              title="The float this shift started with, or is keeping aside — added into Total to Remit below."
+            />
           </div>
 
-          {/* GCash — single value */}
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 mb-3 max-w-sm mx-auto">
-            <div className="flex items-center justify-between mb-2">
-              <p className="flex items-center gap-1.5 text-sm font-bold text-blue-700">
-                <CreditCard size={14} /> GCash
-              </p>
-              <button
-                onClick={() => document.getElementById("gcash-input")?.focus()}
-                className="flex items-center gap-1 text-xs font-semibold text-teal-700 border border-teal-200 rounded-full px-3 py-1 hover:bg-teal-50"
-              >
-                <Plus size={12} /> Add GCash
-              </button>
-            </div>
-            <div className="flex items-center gap-3">
-              <label className="text-xs text-slate-500 shrink-0">Amount (₱)</label>
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 mb-3 relative">
+            <p className="flex items-center gap-1.5 text-sm font-bold text-blue-700 mb-2">
+              <CreditCard size={14} /> GCash
+            </p>
+            <label className="text-xs text-slate-500">Amount (₱)</label>
+            <div className="flex items-center gap-2 mt-0.5">
               <input
-                id="gcash-input"
                 type="number"
                 min="0"
                 step="0.01"
@@ -255,25 +289,54 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
                 onChange={(e) => onGcashChange(e.target.value)}
                 onWheel={(e) => e.target.blur()}
                 placeholder="0.00"
-                className="no-spinner w-28 border border-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                className="no-spinner flex-1 border border-slate-200 rounded-md px-2 py-1.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-200"
               />
               <button
+                type="button"
                 onClick={() => onGcashChange("")}
                 className="w-8 h-8 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 shrink-0"
+                title="Clear amount"
               >
                 <Trash2 size={14} />
               </button>
             </div>
+            <Info
+              size={14}
+              className="absolute top-3.5 right-3.5 text-blue-400"
+              title="Digital GCash payments received this shift — added into Total to Remit below."
+            />
           </div>
 
-          <p className="text-xs text-slate-400 px-1">
-            These feed the "Amount to Remit" figure on the Shift Reconciliation panel above.
+          <p className="flex items-center gap-1.5 text-xs text-slate-400 mb-3">
+            <Info size={12} /> If no amount is entered, it will be recorded as ₱0.00.
           </p>
+
+          <div className="bg-emerald-50 rounded-xl p-4">
+            <div className="flex items-center justify-between py-1 text-sm">
+              <span className="text-emerald-700">Total Cash (Drawer)</span>
+              <span className="font-semibold text-emerald-700">{money(totalCash)}</span>
+            </div>
+            <div className="flex items-center justify-between py-1 text-sm">
+              <span className="text-emerald-700">Petty Cash (Starting Float)</span>
+              <span className="font-semibold text-emerald-700">{money(pettyCashNextday)}</span>
+            </div>
+            <div className="flex items-center justify-between py-1 text-sm">
+              <span className="text-emerald-700">GCash</span>
+              <span className="font-semibold text-emerald-700">{money(gcash)}</span>
+            </div>
+            <div className="flex items-center justify-between pt-2 mt-1 border-t border-emerald-200">
+              <div>
+                <p className="text-sm font-bold text-emerald-800">Total to Remit</p>
+                <p className="text-xs text-emerald-600">(To be reconciled)</p>
+              </div>
+              <span className="text-xl font-extrabold text-emerald-700">{money(totalToRemit)}</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Action row */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-6">
+      {/* Action row — plain, sits below both boxes, not inside either */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-5">
         <button
           onClick={onBack}
           className="flex items-center gap-2 text-sm font-semibold text-teal-700 border border-teal-200 rounded-lg px-4 py-2.5 hover:bg-teal-50"
