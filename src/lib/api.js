@@ -111,16 +111,30 @@ export const ContainerPriceAPI = {
 };
 
 // ---- Expenses (core-services) -------------------------------------------
-// Maps to ExpenseRequest: { date, branchId, description, amount }
-// Independent from Sales Reports — its own entity/list.
+// Maps to ExpenseBatchRequest: { expenses: [{ date, branchId, description, amount }] }
+// One request for the whole batch — atomic on the backend (@Transactional),
+// instead of firing one request per row.
 export const ExpenseAPI = {
-  list: () => request("/expenses"),
-  create: (expenseRequest) =>
+  // Pass (date, branchId) to filter server-side; omit both for the full,
+  // unfiltered list (backward-compatible with existing callers).
+  list: (date, branchId) => {
+    const qs = date && branchId ? `?date=${date}&branchId=${branchId}` : "";
+    return request(`/expenses${qs}`);
+  },
+  createBatch: (expenseRequests) =>
     request("/expenses", {
       method: "POST",
+      body: JSON.stringify({ expenses: expenseRequests }),
+    }),
+  update: (id, expenseRequest) =>
+    request(`/expenses/${id}`, {
+      method: "PUT",
       body: JSON.stringify(expenseRequest),
     }),
+  remove: (id) => request(`/expenses/${id}`, { method: "DELETE" }),
 };
+
+
 
 // ---- Attendance (core-services, payroll) --------------------------------
 // Maps to AttendanceRequest: { employeeId, branchId, date, timeIn, timeOut }
@@ -157,8 +171,15 @@ export const CashSummaryAPI = {
 // ---- Sales Reports (core-services) --------------------------------------
 // Maps to SalesReportRequest:
 // { employeeId, branchId, date, timeIn, timeOut, lineItems: [{ containerSize, quantitySold, manualUnitPrice? }] }
+// Upsert semantics now — one per (date, branchId), same pattern as Cash Summary.
 export const SalesReportAPI = {
   list: () => request("/sales-reports"),
+  get: (date, branchId) =>
+    request(`/sales-reports/lookup?date=${date}&branchId=${branchId}`).catch((err) => {
+      // 404 just means "nothing saved yet for this date/branch" — not a real error.
+      if (err.message.includes("404") || err.message.toLowerCase().includes("not found")) return null;
+      throw err;
+    }),
   create: (salesReportRequest) =>
     request("/sales-reports", {
       method: "POST",
