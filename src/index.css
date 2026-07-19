@@ -10,3 +10,33 @@
   -moz-appearance: textfield;
 }
  
+/* Append this to src/index.css, after the existing @import "tailwindcss"; and .no-spinner rules */
+
+.saved-message {
+  background-color: #10b981;           /* Green background */
+  color: white;
+  font-size: 18px !important;          /* Much larger text */
+  font-weight: 600;
+  padding: 16px 24px;
+  border-radius: 8px;
+  text-align: center;
+  margin: 12px auto;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  animation: fadeIn 0.3s ease;
+}
+
+/* Slides down from above, since the toast now sits at the top of the screen */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Fade-out used when the toast auto-dismisses */
+.saved-message.toast-leaving {
+  animation: fadeOut 0.25s ease forwards;
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-10px); }
+}
