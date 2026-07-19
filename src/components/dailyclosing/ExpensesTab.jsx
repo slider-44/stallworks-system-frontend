@@ -1,21 +1,27 @@
 import React, { forwardRef, useImperativeHandle, useMemo, useState } from "react";
-import { Loader2, Plus, Trash2, ReceiptText } from "lucide-react";
+import { Loader2, Plus, Trash2, Pencil, Check, X, ReceiptText } from "lucide-react";
 import { useExpenses } from "../../context/ExpenseContext";
 
 let draftSeq = 0;
 
-// Matches Sales Entry's pattern: rows are built up in local state only —
-// nothing touches the backend until "Save Expenses" is clicked. This is
-// what lets typing/adding rows keep working even if the backend is down;
-// only the actual Save action needs it.
+// Matches Sales Entry's pattern: new rows are built up in local state only
+// — nothing touches the backend until "Save Expenses" is clicked. Already-
+// saved rows, though, edit/delete immediately (each is its own real
+// record, so there's nothing to "batch" there).
 const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved }, ref) {
-  const { expenses, loading, addExpenses } = useExpenses();
+  const { expenses, loading, addExpenses, updateExpense, removeExpense } = useExpenses();
 
   const [drafts, setDrafts] = useState([]);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Which saved row (by id) is currently being edited, plus its draft values.
+  const [editingId, setEditingId] = useState(null);
+  const [editDescription, setEditDescription] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [rowBusyId, setRowBusyId] = useState(null);
 
   const savedExpenses = useMemo(
     () => expenses.filter((e) => e.date === date && String(e.branchId) === String(branchId)),
@@ -41,6 +47,49 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
 
   const removeDraft = (id) => {
     setDrafts((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  const startEdit = (expense) => {
+    setEditingId(expense.id);
+    setEditDescription(expense.description);
+    setEditAmount(String(expense.amount));
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDescription("");
+    setEditAmount("");
+  };
+
+  const saveEdit = async (id) => {
+    if (!editDescription.trim() || !(Number(editAmount) > 0)) return;
+    setRowBusyId(id);
+    setApiError(null);
+    try {
+      await updateExpense(id, {
+        date,
+        branchId: Number(branchId),
+        description: editDescription.trim(),
+        amount: Number(editAmount),
+      });
+      cancelEdit();
+    } catch (err) {
+      setApiError(err.message);
+    } finally {
+      setRowBusyId(null);
+    }
+  };
+
+  const deleteExisting = async (id) => {
+    setRowBusyId(id);
+    setApiError(null);
+    try {
+      await removeExpense(id);
+    } catch (err) {
+      setApiError(err.message);
+    } finally {
+      setRowBusyId(null);
+    }
   };
 
   const doSubmit = async () => {
@@ -152,20 +201,84 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
       )}
 
       <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="w-full text-sm min-w-[360px]">
+        <table className="w-full text-sm min-w-[420px]">
           <thead>
             <tr className="bg-red-50 text-red-700 text-xs uppercase tracking-wide">
               <th className="text-left font-semibold py-3 px-3">Description</th>
-              <th className="text-right font-semibold py-3 px-3 w-40">Amount (₱)</th>
+              <th className="text-right font-semibold py-3 px-3 w-32">Amount (₱)</th>
+              <th className="text-right font-semibold py-3 px-3 w-20">Action</th>
             </tr>
           </thead>
           <tbody>
-            {savedExpenses.map((e, i) => (
-              <tr key={e.id ?? i} className={`border-b border-slate-100 last:border-0 ${i % 2 === 0 ? "bg-slate-50" : "bg-white"}`}>
-                <td className="py-2.5 px-3 text-slate-700">{e.description}</td>
-                <td className="py-2.5 px-3 text-right text-slate-700">{Number(e.amount).toFixed(2)}</td>
-              </tr>
-            ))}
+            {savedExpenses.map((e, i) => {
+              const isEditing = editingId === e.id;
+              const isBusy = rowBusyId === e.id;
+              return (
+                <tr key={e.id ?? i} className={`border-b border-slate-100 last:border-0 ${i % 2 === 0 ? "bg-slate-50" : "bg-white"}`}>
+                  {isEditing ? (
+                    <>
+                      <td className="py-2 px-3">
+                        <input
+                          value={editDescription}
+                          onChange={(ev) => setEditDescription(ev.target.value)}
+                          autoFocus
+                          className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={editAmount}
+                          onChange={(ev) => setEditAmount(ev.target.value)}
+                          className="w-full text-right border border-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => saveEdit(e.id)}
+                            disabled={isBusy}
+                            className="w-7 h-7 rounded-md bg-emerald-100 text-emerald-600 flex items-center justify-center hover:bg-emerald-200 disabled:opacity-60"
+                          >
+                            {isBusy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            className="w-7 h-7 rounded-md bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="py-2.5 px-3 text-slate-700">{e.description}</td>
+                      <td className="py-2.5 px-3 text-right text-slate-700">{Number(e.amount).toFixed(2)}</td>
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => startEdit(e)}
+                            className="w-7 h-7 rounded-md bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            onClick={() => deleteExisting(e.id)}
+                            disabled={isBusy}
+                            className="w-7 h-7 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 disabled:opacity-60"
+                          >
+                            {isBusy ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
 
             {drafts.map((d) => (
               <tr key={d.id} className="bg-amber-50/40 border-b border-slate-100 last:border-0">
@@ -179,16 +292,18 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
                   />
                 </td>
                 <td className="py-2 px-3">
-                  <div className="flex items-center justify-end gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={d.amount}
-                      onChange={(e) => updateDraft(d.id, "amount", e.target.value)}
-                      placeholder="0.00"
-                      className="w-24 text-right border border-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
-                    />
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={d.amount}
+                    onChange={(e) => updateDraft(d.id, "amount", e.target.value)}
+                    placeholder="0.00"
+                    className="w-full text-right border border-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                  />
+                </td>
+                <td className="py-2 px-3">
+                  <div className="flex justify-end">
                     <button
                       onClick={() => removeDraft(d.id)}
                       className="w-7 h-7 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 shrink-0"
@@ -202,7 +317,7 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
 
             {loading && (
               <tr>
-                <td colSpan={2} className="py-6 text-center text-slate-400">
+                <td colSpan={3} className="py-6 text-center text-slate-400">
                   <Loader2 size={16} className="inline animate-spin mr-2" /> Loading…
                 </td>
               </tr>

@@ -8,13 +8,14 @@ import SalesTabContent from "./SalesTabContent";
 import CashCountTabContent from "./CashCountTabContent";
 import ExpensesTab from "../sales/ExpensesTab";
 import LiveSummaryTop from "./LiveSummaryTop";
+import Toast from "../ui/Toast";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export default function DailyClosingReportPage() {
   const { employees, branches } = useAccountManagement();
-  const { salesReports } = useSales();
-  const { expenses } = useExpenses();
+  const { salesReports, loadCurrent: loadSalesCurrent } = useSales();
+  const { expenses, load: loadExpenses } = useExpenses();
   const { current: cashSummary, load: loadCashSummary } = useCashSummary();
 
   const [date, setDate] = useState(todayISO());
@@ -39,15 +40,19 @@ export default function DailyClosingReportPage() {
   const [salesSaved, setSalesSaved] = useState(false);
   const [expensesSaved, setExpensesSaved] = useState(false);
   const [footerSaving, setFooterSaving] = useState(false);
+  const [footerSaveSuccess, setFooterSaveSuccess] = useState(false);
 
   // A save from a previous date/branch shouldn't count for a new one.
   useEffect(() => {
     setSalesSaved(false);
     setExpensesSaved(false);
+    setFooterSaveSuccess(false);
   }, [date, branchId]);
 
   useEffect(() => {
     loadCashSummary(date, branchId);
+    loadExpenses(date, branchId);
+    loadSalesCurrent(date, branchId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, branchId]);
 
@@ -73,12 +78,11 @@ export default function DailyClosingReportPage() {
 
   const totalSales = liveSalesTotal > 0 ? liveSalesTotal : persistedSalesTotal;
 
+  // No longer needs to filter — `expenses` is already scoped to this
+  // date/branch by the server (see loadExpenses above).
   const totalExpenses = useMemo(
-    () =>
-      expenses
-        .filter((e) => e.date === date && String(e.branchId) === String(branchId))
-        .reduce((sum, e) => sum + Number(e.amount || 0), 0),
-    [expenses, date, branchId]
+    () => expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0),
+    [expenses]
   );
 
   const employeeName = useMemo(() => {
@@ -219,7 +223,6 @@ export default function DailyClosingReportPage() {
             employeeId={employeeId}
             timeIn={timeIn}
             timeOut={timeOut}
-            onGcashChange={setGcash}
             onLiveTotalChange={setLiveSalesTotal}
             onSaved={() => setSalesSaved(true)}
           />
@@ -280,9 +283,11 @@ export default function DailyClosingReportPage() {
               <button
                 onClick={async () => {
                   setFooterSaving(true);
-                  await salesTabRef.current?.submit();
-                  await expensesTabRef.current?.submit();
+                  setFooterSaveSuccess(false);
+                  const salesResult = await salesTabRef.current?.submit();
+                  const expensesResult = await expensesTabRef.current?.submit();
                   setFooterSaving(false);
+                  if (salesResult?.ok && expensesResult?.ok) setFooterSaveSuccess(true);
                 }}
                 disabled={footerSaving}
                 className="flex items-center gap-2 border border-teal-200 text-teal-700 hover:bg-teal-50 text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-60"
@@ -343,6 +348,12 @@ export default function DailyClosingReportPage() {
           onBack={() => setActiveView("cashcount")}
         />
       </div>
+
+      <Toast
+        show={footerSaveSuccess}
+        message="Sales and Expenses have been saved."
+        onDismiss={() => setFooterSaveSuccess(false)}
+      />
     </div>
   );
 }

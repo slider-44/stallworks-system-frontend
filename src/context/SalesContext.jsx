@@ -6,6 +6,10 @@ const SalesContext = createContext(null);
 export function SalesProvider({ children }) {
   const [salesReports, setSalesReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  // The specific existing report for whatever date/branch is currently
+  // selected — null if nothing's been saved there yet. Same pattern as
+  // CashSummaryContext's `current`.
+  const [current, setCurrent] = useState(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -24,13 +28,35 @@ export function SalesProvider({ children }) {
     loadAll();
   }, [loadAll]);
 
-  const addSalesReport = useCallback(async (salesReportRequest) => {
-    const created = await SalesReportAPI.create(salesReportRequest);
-    setSalesReports((prev) => [...prev, created]);
-    return created;
+  const loadCurrent = useCallback(async (date, branchId) => {
+    if (!date || !branchId) {
+      setCurrent(null);
+      return;
+    }
+    try {
+      const res = await SalesReportAPI.get(date, branchId);
+      setCurrent(res); // null if nothing saved yet for this date/branch
+    } catch (err) {
+      console.warn("GET /v1/sales-reports/lookup failed:", err.message);
+      setCurrent(null);
+    }
   }, []);
 
-  const value = { salesReports, loading, refresh: loadAll, addSalesReport };
+  // Upsert on the backend now — replace the matching report in the list
+  // (by date+branchId) instead of always appending a new one.
+  const addSalesReport = useCallback(async (salesReportRequest) => {
+    const saved = await SalesReportAPI.create(salesReportRequest);
+    setSalesReports((prev) => {
+      const withoutMatch = prev.filter(
+        (r) => !(r.date === saved.date && String(r.branchId) === String(saved.branchId))
+      );
+      return [...withoutMatch, saved];
+    });
+    setCurrent(saved);
+    return saved;
+  }, []);
+
+  const value = { salesReports, loading, current, refresh: loadAll, loadCurrent, addSalesReport };
 
   return <SalesContext.Provider value={value}>{children}</SalesContext.Provider>;
 }
