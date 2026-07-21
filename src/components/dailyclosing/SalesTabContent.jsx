@@ -2,6 +2,8 @@ import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } 
 import { Loader2, CheckCircle2, Plus, Minus, ShoppingCart } from "lucide-react";
 import { useSales } from "../../context/SalesContext";
 import { useContainerPrices } from "../../context/ContainerPriceContext";
+import { useAuth } from "../../context/AuthContext";
+import Modal from "../ui/Modal";
 
 const SalesTabContent = forwardRef(function SalesTabContent(
   { date, branchId, employeeId, timeIn, timeOut, onLiveTotalChange, onSaved },
@@ -9,16 +11,22 @@ const SalesTabContent = forwardRef(function SalesTabContent(
 ) {
   const { current, addSalesReport } = useSales();
   const { prices, loading: pricesLoading } = useContainerPrices();
+  const { employeeId: loggedInEmployeeId } = useAuth();
 
   const [rows, setRows] = useState({});
-  // Single fixed Add Ons row — no custom naming, just qty + manual price,
-  // since it has no admin-set price like the six fixed sizes do.
-  const [addOnsRow, setAddOnsRow] = useState({ quantitySold: 0, manualUnitPrice: "" });
+  // Add Ons is just a single total amount now — no qty/price split. Sent
+  // to the backend as quantitySold: 1, manualUnitPrice: amount, so the
+  // line total still comes out correct with zero backend changes needed.
+  const [addOnsAmount, setAddOnsAmount] = useState("");
 
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Popup asking "confirm no sales?" — shown instead of a blocking error
+  // whenever Save is clicked with nothing entered at all, since a shift
+  // can genuinely have zero sales.
+  const [confirmNoSalesOpen, setConfirmNoSalesOpen] = useState(false);
 
   useEffect(() => {
     setRows((prev) => {
@@ -46,7 +54,7 @@ const SalesTabContent = forwardRef(function SalesTabContent(
         });
         return next;
       });
-      setAddOnsRow({ quantitySold: 0, manualUnitPrice: "" });
+      setAddOnsAmount("");
       return;
     }
 
@@ -64,11 +72,9 @@ const SalesTabContent = forwardRef(function SalesTabContent(
     });
 
     const addOns = (current.lineItems || []).find((li) => li.containerSize === "ADD_ONS");
-    setAddOnsRow(
-      addOns
-        ? { quantitySold: addOns.quantitySold, manualUnitPrice: String(addOns.unitPrice ?? "") }
-        : { quantitySold: 0, manualUnitPrice: "" }
-    );
+    // Reconstruct the total regardless of qty (handles old data saved
+    // before this change, where qty could be >1).
+    setAddOnsAmount(addOns ? String(Number(addOns.quantitySold) * Number(addOns.unitPrice)) : "");
   }, [current]);
 
   const setQty = (key, qty) => {
@@ -77,12 +83,12 @@ const SalesTabContent = forwardRef(function SalesTabContent(
 
   const lineTotal = (size) => (Number(rows[size.key]?.quantitySold) || 0) * size.price;
 
-  const addOnsTotal = (Number(addOnsRow.quantitySold) || 0) * (Number(addOnsRow.manualUnitPrice) || 0);
+  const addOnsTotal = Number(addOnsAmount) || 0;
 
   const grandTotal = useMemo(
     () => prices.reduce((sum, size) => sum + lineTotal(size), 0) + addOnsTotal,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows, prices, addOnsRow]
+    [rows, prices, addOnsAmount]
   );
 
   useEffect(() => {
@@ -98,10 +104,9 @@ const SalesTabContent = forwardRef(function SalesTabContent(
       })
       .filter(Boolean);
 
-    const addOnsQty = Number(addOnsRow.quantitySold) || 0;
     const addOnsItem =
-      addOnsQty > 0
-        ? [{ containerSize: "ADD_ONS", quantitySold: addOnsQty, manualUnitPrice: Number(addOnsRow.manualUnitPrice) || 0 }]
+      addOnsTotal > 0
+        ? [{ containerSize: "ADD_ONS", quantitySold: 1, manualUnitPrice: addOnsTotal }]
         : [];
 
     return [...fixedItems, ...addOnsItem];
@@ -110,33 +115,21 @@ const SalesTabContent = forwardRef(function SalesTabContent(
   const validate = () => {
     const errs = {};
     if (!date || !branchId || !employeeId) errs.header = "Set date, branch, and crew above first";
-    else if (!timeIn || !timeOut) errs.header = "Set Time In and Time Out above first";
-
-    if (buildLineItems().length === 0) errs.rows = "Enter at least one item sold";
-
-    if (Number(addOnsRow.quantitySold) > 0 && !(Number(addOnsRow.manualUnitPrice) > 0)) {
-      errs.rows = "Enter a price for Add Ons";
-    }
-
     return errs;
   };
 
-  const doSubmit = async () => {
-    const validationErrors = validate();
-    setErrors(validationErrors);
-    setSuccess(false);
-    if (Object.keys(validationErrors).length) return { ok: false };
-
+  const submitReport = async (lineItems) => {
     setSubmitting(true);
     setApiError(null);
     try {
       await addSalesReport({
         employeeId: Number(employeeId),
+        actorEmployeeId: Number(loggedInEmployeeId),
         branchId: Number(branchId),
         date,
         timeIn,
         timeOut,
-        lineItems: buildLineItems(),
+        lineItems,
       });
       setSuccess(true);
       onSaved?.();
@@ -148,6 +141,35 @@ const SalesTabContent = forwardRef(function SalesTabContent(
       setSubmitting(false);
     }
   };
+
+  const doSubmit = async () => {
+    // Guard against a second call landing while the first is still in
+    // flight (e.g. a fast double-click) — the unique constraint on the
+    // backend would otherwise catch this as a raw 500, not cleanly.
+    if (submitting) return { ok: false };
+
+    const validationErrors = validate();
+    setErrors(validationErrors);
+    setSuccess(false);
+    if (Object.keys(validationErrors).length) return { ok: false };
+
+    const lineItems = buildLineItems();
+    if (lineItems.length === 0) {
+      // Nothing entered — ask via a popup instead of just blocking, since
+      // a shift can genuinely have zero sales.
+      setConfirmNoSalesOpen(true);
+      return { ok: false };
+    }
+
+    return submitReport(lineItems);
+  };
+
+  const handleConfirmNoSales = async () => {
+    const result = await submitReport([]);
+    if (result.ok) setConfirmNoSalesOpen(false);
+  };
+
+  const handleCancelNoSales = () => setConfirmNoSalesOpen(false);
 
   useImperativeHandle(ref, () => ({ submit: doSubmit }));
 
@@ -205,11 +227,6 @@ const SalesTabContent = forwardRef(function SalesTabContent(
           {errors.header}
         </div>
       )}
-      {errors.rows && (
-        <div className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4">
-          {errors.rows}
-        </div>
-      )}
 
       <div className="overflow-x-auto rounded-lg border border-slate-200">
         {pricesLoading ? (
@@ -247,38 +264,54 @@ const SalesTabContent = forwardRef(function SalesTabContent(
               ))}
 
               <tr className="bg-amber-50/40 border-b border-slate-100 last:border-0">
-                <td className="py-3 px-3">
+                <td className="py-3 px-3" colSpan={3}>
                   <p className="font-medium text-slate-800">Add Ons</p>
                   <p className="text-xs text-slate-400">—</p>
                 </td>
                 <td className="py-3 px-3">
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center justify-end gap-1">
                     <span className="text-xs text-slate-400">₱</span>
                     <input
                       type="number"
                       min="0"
                       step="0.01"
-                      value={addOnsRow.manualUnitPrice}
-                      onChange={(e) => setAddOnsRow((prev) => ({ ...prev, manualUnitPrice: e.target.value }))}
-                      placeholder="Price"
-                      className="w-20 border border-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                      value={addOnsAmount}
+                      onChange={(e) => setAddOnsAmount(e.target.value)}
+                      onWheel={(e) => e.target.blur()}
+                      placeholder="0.00"
+                      className="no-spinner w-24 text-right border border-slate-200 rounded-md px-2 py-1.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-200"
                     />
                   </div>
                 </td>
-                <td className="py-3 px-3">
-                  <div className="flex justify-center">
-                    <Stepper
-                      value={addOnsRow.quantitySold}
-                      onChange={(v) => setAddOnsRow((prev) => ({ ...prev, quantitySold: Math.max(0, v) }))}
-                    />
-                  </div>
-                </td>
-                <td className="py-3 px-3 text-right font-semibold text-slate-700">{money(addOnsTotal)}</td>
               </tr>
             </tbody>
           </table>
         )}
       </div>
+
+      <Modal open={confirmNoSalesOpen} onClose={handleCancelNoSales} title="No items sold">
+        <div className="text-center py-2">
+          <p className="text-sm text-slate-600">
+            You haven't recorded any sales for this shift. Confirm there really were none?
+          </p>
+          <div className="flex items-center justify-center gap-3 mt-5">
+            <button
+              onClick={handleCancelNoSales}
+              className="px-5 py-2 text-sm font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+            >
+              Go back, add one
+            </button>
+            <button
+              onClick={handleConfirmNoSales}
+              disabled={submitting}
+              className="flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-lg bg-teal-700 text-white hover:bg-teal-800 disabled:opacity-60"
+            >
+              {submitting && <Loader2 size={14} className="animate-spin" />}
+              Yes, no sales
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 });

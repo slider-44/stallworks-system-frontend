@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Search, ClipboardList, Calendar, Building2, Users, Clock, ShoppingCart, Wallet, ReceiptText, ArrowRight, ShieldCheck, CheckCircle2, Save, Loader2 } from "lucide-react";
+import { Search, ClipboardList, Calendar, Building2, Users, Clock, ShoppingCart, Wallet, ReceiptText, ArrowRight, ShieldCheck, CheckCircle2, Save, Loader2, Lock } from "lucide-react";
 import { useAccountManagement } from "../../context/AccountManagementContext";
+import { useAuth } from "../../context/AuthContext";
+import { useAttendance } from "../../context/AttendanceContext";
 import { useSales } from "../../context/SalesContext";
 import { useExpenses } from "../../context/ExpenseContext";
 import { useCashSummary } from "../../context/CashSummaryContext";
@@ -9,18 +11,35 @@ import CashCountTabContent from "./CashCountTabContent";
 import ExpensesTab from "../sales/ExpensesTab";
 import LiveSummaryTop from "./LiveSummaryTop";
 import Toast from "../ui/Toast";
+import { todayISO } from "../../lib/dateUtils";
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+// Dims and blocks interaction with whatever it's layered over, once a
+// shift is closed. Simpler and safer than threading a `locked` prop into
+// every input across three separate large components.
+function LockOverlay() {
+  return (
+    <div className="absolute inset-0 z-10 bg-white/70 backdrop-blur-[1px] rounded-2xl flex flex-col items-center justify-center gap-2 pointer-events-auto">
+      <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center">
+        <Lock size={18} className="text-slate-500" />
+      </div>
+      <p className="text-sm font-semibold text-slate-600">This shift is closed</p>
+      <p className="text-xs text-slate-400">Contact an admin to reopen it before making changes</p>
+    </div>
+  );
+}
 
 export default function DailyClosingReportPage() {
   const { employees, branches } = useAccountManagement();
-  const { salesReports, loadCurrent: loadSalesCurrent } = useSales();
+  const { employeeId: loggedInEmployeeId, branchIds: myBranchIds, isAdmin } = useAuth();
+  const { today: attendanceToday } = useAttendance();
+  const { salesReports, current: currentSalesReport, loadCurrent: loadSalesCurrent } = useSales();
   const { expenses, load: loadExpenses } = useExpenses();
-  const { current: cashSummary, load: loadCashSummary } = useCashSummary();
+  const { current: cashSummary, load: loadCashSummary, closeShift, reopenShift } = useCashSummary();
+  const isShiftClosed = cashSummary?.closed || false;
 
   const [date, setDate] = useState(todayISO());
   const [branchId, setBranchId] = useState("");
-  const [employeeId, setEmployeeId] = useState("");
+  const [employeeId, setEmployeeId] = useState(() => (loggedInEmployeeId ? String(loggedInEmployeeId) : ""));
   const [timeIn, setTimeIn] = useState("");
   const [timeOut, setTimeOut] = useState("");
 
@@ -55,6 +74,46 @@ export default function DailyClosingReportPage() {
     loadSalesCurrent(date, branchId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, branchId]);
+
+  // Auto-select Branch once the logged-in employee's branch assignment
+  // actually resolves — this can arrive a moment after first render
+  // (it depends on the Employee list finishing its fetch), so a one-time
+  // initial default isn't enough; this needs to react to that arrival.
+  // Only auto-fills if unambiguous (exactly one branch) and nothing's
+  // been manually picked yet.
+  useEffect(() => {
+    if (myBranchIds.length === 1 && !branchId) {
+      setBranchId(String(myBranchIds[0]));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myBranchIds]);
+
+  // Crew should reflect whose shift this actually was — not whoever's
+  // currently logged in — once a saved report exists for this date/branch.
+  // Only fall back to the logged-in user for a brand-new (unsaved) entry.
+  useEffect(() => {
+    if (currentSalesReport) {
+      setEmployeeId(String(currentSalesReport.employeeId));
+    } else {
+      setEmployeeId(loggedInEmployeeId ? String(loggedInEmployeeId) : "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSalesReport]);
+
+  // Time In/Out: an existing saved report's own times win (that's the
+  // actual record of what happened). For a brand-new entry, default from
+  // the employee's real clock-in/out on the timesheet instead of leaving
+  // it blank for manual re-entry — still editable afterward either way.
+  useEffect(() => {
+    if (currentSalesReport) {
+      setTimeIn(currentSalesReport.timeIn || "");
+      setTimeOut(currentSalesReport.timeOut || "");
+    } else {
+      setTimeIn(attendanceToday?.timeIn ? attendanceToday.timeIn.slice(0, 5) : "");
+      setTimeOut(attendanceToday?.timeOut ? attendanceToday.timeOut.slice(0, 5) : "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSalesReport, attendanceToday]);
 
   useEffect(() => {
     if (cashSummary) {
@@ -182,40 +241,61 @@ export default function DailyClosingReportPage() {
         </div>
       )}
 
-      {/* Step wizard: 1. Sales & Expenses -> 2. Cash Count */}
-      <div className="flex items-center gap-3 mb-5">
-        <button onClick={() => setActiveView("main")} className="flex items-center gap-2">
-          <span
-            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-              activeView === "main"
-                ? "bg-teal-700 text-white"
-                : "bg-emerald-100 text-emerald-700"
-            }`}
-          >
-            {activeView === "cashcount" ? <CheckCircle2 size={15} /> : "1"}
-          </span>
-          <span className={`text-sm font-semibold ${activeView === "main" ? "text-teal-700" : "text-slate-500"}`}>
-            Sales &amp; Expenses
-          </span>
-        </button>
-        <div className="w-10 h-px bg-slate-200" />
-        <button onClick={() => setActiveView("cashcount")} className="flex items-center gap-2">
-          <span
-            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-              activeView === "cashcount" ? "bg-teal-700 text-white" : "bg-slate-200 text-slate-500"
-            }`}
-          >
-            2
-          </span>
-          <span className={`text-sm font-semibold ${activeView === "cashcount" ? "text-teal-700" : "text-slate-400"}`}>
-            Cash Count
-          </span>
-        </button>
-      </div>
+      {activeView === "main" ? (
+        /* Sales & Expenses — original, simple step indicator, unchanged */
+        <div className="flex items-center gap-3 mb-5">
+          <button onClick={() => setActiveView("main")} className="flex items-center gap-2">
+            <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-teal-700 text-white">
+              1
+            </span>
+            <span className="text-sm font-semibold text-teal-700">Sales &amp; Expenses</span>
+          </button>
+          <div className="w-10 h-px bg-slate-200" />
+          <button onClick={() => setActiveView("cashcount")} className="flex items-center gap-2">
+            <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-slate-200 text-slate-500">
+              2
+            </span>
+            <span className="text-sm font-semibold text-slate-400">Cash Count</span>
+          </button>
+        </div>
+      ) : (
+        /* Cash Count — bigger combined bar with Date/Cashier/Location */
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 px-8 py-7 mb-5 flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-5">
+            <button onClick={() => setActiveView("main")} className="flex items-center gap-3">
+              <span className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold bg-emerald-100 text-emerald-700">
+                <CheckCircle2 size={26} />
+              </span>
+              <span className="text-xl font-bold text-slate-500">Sales &amp; Expenses</span>
+            </button>
+            <div className="w-20 h-px bg-slate-200" />
+            <button onClick={() => setActiveView("cashcount")} className="flex items-center gap-3">
+              <span className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold bg-teal-700 text-white">
+                2
+              </span>
+              <span className="text-xl font-bold text-teal-700">Cash Count</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-6 text-base text-slate-600">
+            <span className="flex items-center gap-2">
+              <Calendar size={18} className="text-teal-600" /> {date}
+            </span>
+            <span className="flex items-center gap-2">
+              <Users size={18} className="text-teal-600" /> {employeeName || "—"}
+            </span>
+            <span className="flex items-center gap-2">
+              <Building2 size={18} className="text-teal-600" />
+              {branches.find((b) => String(b.id) === String(branchId))?.name || "—"}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Sales + Expenses side by side */}
       <div style={{ display: activeView === "main" ? "grid" : "none" }} className="grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <div className="relative bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          {isShiftClosed && <LockOverlay />}
           <SalesTabContent
             ref={salesTabRef}
             date={date}
@@ -227,7 +307,8 @@ export default function DailyClosingReportPage() {
             onSaved={() => setSalesSaved(true)}
           />
         </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <div className="relative bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          {isShiftClosed && <LockOverlay />}
           <ExpensesTab
             ref={expensesTabRef}
             date={date}
@@ -314,7 +395,8 @@ export default function DailyClosingReportPage() {
 
       {/* Cash Count, full width */}
       <div style={{ display: activeView === "cashcount" ? "block" : "none" }}>
-        <div className="mb-5">
+        <div className="relative mb-5">
+          {isShiftClosed && <LockOverlay />}
           <CashCountTabContent
             ref={cashCountTabRef}
             date={date}
@@ -346,6 +428,8 @@ export default function DailyClosingReportPage() {
           actualCash={actualCash}
           pettyCashNextday={pettyCashNextday}
           onBack={() => setActiveView("cashcount")}
+          isShiftClosed={isShiftClosed}
+          onCloseShift={() => closeShift(date, branchId, Number(loggedInEmployeeId))}
         />
       </div>
 

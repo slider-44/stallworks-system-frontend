@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Wallet,
   CreditCard,
@@ -8,13 +8,15 @@ import {
   Clock,
   User,
   Info,
-  AlertTriangle,
   CheckCircle2,
-  RefreshCw,
-  FileText,
+  Pencil,
   ArrowLeft,
-  RotateCcw,
-  Save,
+  Lock,
+  Scale,
+  Briefcase,
+  ChevronRight,
+  ArrowDownCircle,
+  ArrowUpCircle,
 } from "lucide-react";
 
 const formatTime12 = (t) => {
@@ -45,6 +47,8 @@ export default function LiveSummaryTop({
   actualCash,
   pettyCashNextday,
   onBack,
+  isShiftClosed,
+  onCloseShift,
 }) {
   // Expected Cash = Gross Sales − Total Expenses (no petty cash involved).
   const expectedCash = totalSales - totalExpenses;
@@ -55,35 +59,77 @@ export default function LiveSummaryTop({
   const floatForNextShift = Number(pettyCashNextday || 0);
 
   const totalFundsReceived = cashDrawerCount + startingFloat + gcashCollected;
-  const amountToRemit = totalFundsReceived - floatForNextShift;
 
-  const variance = amountToRemit - expectedCash;
+  // Used for the variance check — GCash genuinely belongs here, since
+  // Expected Cash represents ALL recorded sales regardless of how the
+  // customer paid. (The starting/next-shift float cancels out arithmetically.)
+  const totalReceived = totalFundsReceived - floatForNextShift;
+
+  // Amount to Remit is a DIFFERENT question: how much physical cash needs
+  // handing over. GCash is already in the owner's account automatically —
+  // nothing to remit there — so it's deliberately excluded from this one.
+  const amountToRemit = cashDrawerCount - floatForNextShift;
+
+  const variance = totalReceived - expectedCash;
 
   let status = "BALANCED";
   if (variance > 0.004) status = "OVER";
   else if (variance < -0.004) status = "SHORT";
 
   const statusConfig = {
-    BALANCED: { bg: "bg-emerald-50", border: "border-emerald-100", text: "text-emerald-700", icon: CheckCircle2 },
-    OVER: { bg: "bg-amber-50", border: "border-amber-100", text: "text-amber-700", icon: AlertTriangle },
-    SHORT: { bg: "bg-red-50", border: "border-red-100", text: "text-red-700", icon: AlertTriangle },
+    BALANCED: {
+      bg: "bg-emerald-50",
+      border: "border-emerald-100",
+      text: "text-emerald-700",
+      icon: CheckCircle2,
+      label: "Balanced",
+    },
+    OVER: {
+      bg: "bg-amber-50",
+      border: "border-amber-100",
+      text: "text-amber-700",
+      icon: ArrowUpCircle,
+      label: "Over",
+    },
+    SHORT: {
+      bg: "bg-red-50",
+      border: "border-red-100",
+      text: "text-red-700",
+      icon: ArrowDownCircle,
+      label: "Short",
+    },
   }[status];
   const StatusIcon = statusConfig.icon;
 
   const statusMessage = {
-    BALANCED: "Your cash matches your recorded sales. You're ready to close the shift.",
-    OVER: "You have a cash overage. Please review your transactions and cash count before closing the shift.",
-    SHORT: "You have a cash short. Please review your transactions and cash count before closing the shift.",
+    BALANCED: "Your cash matches your recorded sales.",
+    OVER: "You have a cash overage. Please review the details.",
+    SHORT: "Your cash does not match. Please review the details.",
   }[status];
 
   const money = (n) =>
     `₱${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+  const [closing, setClosing] = useState(false);
+  const [closeError, setCloseError] = useState(null);
+
+  const handleClose = async () => {
+    setClosing(true);
+    setCloseError(null);
+    try {
+      await onCloseShift?.();
+    } catch (err) {
+      setCloseError(err.message);
+    } finally {
+      setClosing(false);
+    }
+  };
+
   const ReconciliationRow = ({ icon: Icon, iconColor, label, sub, value }) => (
     <div className="flex items-start justify-between py-2.5">
       <div className="flex items-center gap-2.5">
-        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${iconColor.bg}`}>
-          <Icon size={13} className={iconColor.text} />
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconColor.bg}`}>
+          <Icon size={14} className={iconColor.text} />
         </div>
         <div>
           <p className="text-sm font-bold text-slate-900 leading-tight">{label}</p>
@@ -96,7 +142,7 @@ export default function LiveSummaryTop({
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-      <div className="flex items-start justify-between flex-wrap gap-3">
+      <div className="flex items-start justify-between flex-wrap gap-3 mb-5">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Shift Reconciliation</h2>
           <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-sm text-slate-500 mt-1.5">
@@ -105,7 +151,7 @@ export default function LiveSummaryTop({
             </span>
             <span className="text-slate-300">|</span>
             <span className="flex items-center gap-1.5">
-              <Clock size={14} /> Shift {formatTime12(timeIn)} - {formatTime12(timeOut)}
+              <Clock size={14} /> {formatTime12(timeIn)}
             </span>
             <span className="text-slate-300">|</span>
             <span className="flex items-center gap-1.5">
@@ -113,55 +159,22 @@ export default function LiveSummaryTop({
             </span>
           </div>
         </div>
-        <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1.5">
-          <RefreshCw size={12} /> Updates as you type
-        </span>
+        <button className="flex items-center gap-1.5 text-xs font-semibold text-teal-700 border border-teal-200 rounded-full px-3 py-1.5 hover:bg-teal-50">
+          <Pencil size={12} /> Update as you type
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 mt-5">
-        {/* Expected Cash */}
-        <div className="sm:col-span-2 bg-emerald-50 rounded-xl p-4 flex flex-col">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-              <Wallet size={16} className="text-emerald-700" />
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+        {/* Cash Reconciliation — one unified card */}
+        <div className="md:col-span-8 border border-slate-100 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+              <CreditCard size={15} className="text-blue-600" />
             </div>
-            <div>
-              <p className="flex items-center gap-1 text-sm font-bold text-slate-900 leading-tight">
-                Expected Cash <Info size={12} className="text-slate-400" />
-              </p>
-              <p className="text-xs text-slate-500 leading-tight">From Sales &amp; Expenses</p>
-            </div>
+            <p className="text-sm font-bold text-slate-900 uppercase tracking-wide">Cash Reconciliation</p>
           </div>
 
-          <p className="text-2xl font-extrabold text-emerald-700 mt-2">{money(expectedCash)}</p>
-
-          {/* Intentionally non-functional for now — modal/detail view not built yet. */}
-          <button
-            type="button"
-            onClick={() => {}}
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2 mt-3 w-fit hover:bg-slate-50"
-          >
-            <FileText size={13} /> View Sales &amp; Expenses Summary
-          </button>
-
-          <div className="mt-auto pt-3 text-xs text-emerald-800 bg-emerald-100 rounded-lg px-3 py-2">
-            Expected Cash is the amount that should be in the drawer based on your recorded sales and expenses.
-          </div>
-        </div>
-
-        {/* Cash Reconciliation */}
-        <div className="sm:col-span-3 bg-blue-50 rounded-xl p-4 flex flex-col">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-              <CreditCard size={16} className="text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-slate-900 leading-tight">Cash Reconciliation</p>
-              <p className="text-xs text-slate-500 leading-tight">What we actually received</p>
-            </div>
-          </div>
-
-          <div className="mt-1">
+          <div className="divide-y divide-slate-100">
             <ReconciliationRow
               icon={Wallet}
               iconColor={{ bg: "bg-slate-100", text: "text-slate-500" }}
@@ -185,18 +198,18 @@ export default function LiveSummaryTop({
             />
           </div>
 
-          <div className="border-t border-blue-200 mt-1 pt-2 flex items-center justify-between gap-3">
+          <div className="border-t border-blue-200 mt-1 pt-2.5 flex items-center justify-between gap-3">
             <p className="flex items-center gap-1 text-sm font-bold text-slate-900">
               Total Funds Received (Actual) <Info size={12} className="text-slate-400" />
             </p>
             <span className="text-2xl font-extrabold text-blue-600 shrink-0">{money(totalFundsReceived)}</span>
           </div>
 
-          <div className="border-t border-blue-200 mt-2 pt-2">
-            <div className="flex items-start justify-between py-1">
+          <div className="mt-1">
+            <div className="flex items-start justify-between py-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                  <MinusCircle size={13} className="text-slate-500" />
+                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                  <MinusCircle size={14} className="text-slate-500" />
                 </div>
                 <div>
                   <p className="text-sm font-bold text-slate-900 leading-tight">Float for Next Shift (Petty Cash)</p>
@@ -207,62 +220,86 @@ export default function LiveSummaryTop({
             </div>
           </div>
 
-          <div className="mt-3 bg-blue-100 border border-blue-200 rounded-lg px-4 py-3 flex-1 flex items-center justify-between gap-3">
+          <div className="mt-2 bg-blue-100 border border-blue-200 rounded-lg px-4 py-3 flex items-center justify-between gap-3">
             <div>
               <p className="flex items-center gap-1 text-sm font-bold text-blue-800">
                 Amount to Remit <Info size={12} className="text-blue-400" />
               </p>
-              <p className="text-xs text-blue-600">This is the amount to turn in after keeping the float.</p>
+              <p className="text-xs text-blue-600">This is the cash to turn in after keeping the float.</p>
             </div>
             <span className="text-2xl font-extrabold text-blue-700 shrink-0">{money(amountToRemit)}</span>
           </div>
-        </div>
-      </div>
 
-      {/* Cash Variance */}
-      <div className={`mt-4 rounded-xl p-5 border ${statusConfig.bg} ${statusConfig.border}`}>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-          <div className="flex items-center gap-3 sm:pr-5 sm:border-r sm:border-black/5">
-            <div className={`w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0 ${statusConfig.text}`}>
-              <StatusIcon size={20} />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Cash Variance</p>
-              <p className={`text-xl font-extrabold ${statusConfig.text}`}>{status}</p>
-              <p className={`text-2xl font-extrabold ${statusConfig.text}`}>{money(Math.abs(variance))}</p>
-            </div>
-          </div>
-
-          <div className="flex-1 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-bold text-slate-900">Expected Cash</p>
-              <p className="text-lg font-extrabold text-slate-900 mt-0.5">{money(expectedCash)}</p>
-              <p className="text-xs text-slate-500 mt-0.5">From Sales &amp; Expenses</p>
-            </div>
-
-            <span className="text-2xl font-bold text-slate-400 shrink-0">−</span>
-
-            <div>
-              <p className="text-sm font-bold text-slate-900">Amount to Remit</p>
-              <p className="text-lg font-extrabold text-slate-900 mt-0.5">{money(amountToRemit)}</p>
-              <p className="text-xs text-slate-500 mt-0.5">From Cash Reconciliation</p>
-            </div>
-
-            <span className="text-2xl font-bold text-slate-400 shrink-0">=</span>
-
-            <div>
-              <p className="text-sm font-bold text-slate-900">Variance (Expected − Actual)</p>
-              <p className={`text-lg font-extrabold mt-0.5 ${statusConfig.text}`}>
-                {variance >= 0 ? "+" : "-"}
-                {money(Math.abs(variance))}
-              </p>
-            </div>
-          </div>
+          <p className="flex items-center gap-1.5 text-xs text-slate-400 mt-3">
+            <Info size={12} /> GCash ({money(gcashCollected)}) already in owner's account — not remitted.
+          </p>
         </div>
 
-        <div className={`flex items-center gap-2 mt-3 pt-3 border-t border-black/5 text-xs ${statusConfig.text}`}>
-          <Info size={13} />
-          {statusMessage}
+        {/* Right sidebar — four stacked stat cards */}
+        <div className="md:col-span-4 flex flex-col gap-4">
+          <div className="bg-emerald-50 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                <Briefcase size={14} className="text-emerald-700" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wide leading-tight">Expected Cash</p>
+                <p className="flex items-center gap-1 text-xs text-slate-500 leading-tight">
+                  From Sales &amp; Expenses <Info size={11} />
+                </p>
+              </div>
+            </div>
+            <p className="text-2xl font-extrabold text-emerald-700 mt-1">{money(expectedCash)}</p>
+            {/* Intentionally non-functional for now — modal/detail view not built yet. */}
+            <button
+              type="button"
+              onClick={() => {}}
+              className="flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:underline mt-1.5"
+            >
+              View Sales &amp; Expenses Summary <ChevronRight size={12} />
+            </button>
+          </div>
+
+          <div className="bg-blue-50 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                <CreditCard size={14} className="text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-blue-700 uppercase tracking-wide leading-tight">Actual Received</p>
+                <p className="text-xs text-slate-500 leading-tight">Cash + GCash</p>
+              </div>
+            </div>
+            <p className="text-2xl font-extrabold text-blue-700 mt-1">{money(totalReceived)}</p>
+          </div>
+
+          <div className="bg-teal-50 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
+                <Scale size={14} className="text-teal-700" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-teal-700 uppercase tracking-wide leading-tight">Variance</p>
+                <p className="text-xs text-slate-500 leading-tight">Expected - Actual</p>
+              </div>
+            </div>
+            <p className="text-2xl font-extrabold text-slate-900 mt-1">{money(Math.abs(variance))}</p>
+            {status !== "BALANCED" && (
+              <span className={`flex items-center gap-1 w-fit text-xs font-semibold rounded-full px-2.5 py-1 mt-1.5 ${statusConfig.bg} ${statusConfig.text}`}>
+                <StatusIcon size={12} /> {statusConfig.label}
+              </span>
+            )}
+          </div>
+
+          <div className={`rounded-xl p-4 flex items-center gap-3 border ${statusConfig.bg} ${statusConfig.border}`}>
+            <div className={`w-9 h-9 rounded-full bg-white flex items-center justify-center shrink-0 ${statusConfig.text}`}>
+              <StatusIcon size={18} />
+            </div>
+            <div>
+              <p className={`text-sm font-bold uppercase tracking-wide ${statusConfig.text}`}>{statusConfig.label}</p>
+              <p className={`text-xs ${statusConfig.text}`}>{statusMessage}</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -274,28 +311,29 @@ export default function LiveSummaryTop({
         >
           <ArrowLeft size={14} /> Back to Cash Count
         </button>
-        <div className="flex items-center gap-2">
-          {/* TODO: Reset behavior not yet defined — what exactly should
-              reset here, given the inputs live on the Cash Count step? */}
-          <button
-            type="button"
-            onClick={() => {}}
-            className="flex items-center gap-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-lg px-4 py-2.5 hover:bg-slate-50"
-          >
-            <RotateCcw size={14} /> Reset
-          </button>
-          {/* TODO: no "close shift" backend endpoint exists yet — this
-              currently doesn't persist anything beyond what Cash Count's
-              own Save already does. */}
-          <button
-            type="button"
-            onClick={() => {}}
-            className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm"
-          >
-            <Save size={15} /> Save &amp; Close Shift
-          </button>
-        </div>
+
+        {isShiftClosed ? (
+          <span className="flex items-center gap-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-2.5">
+            <Lock size={14} /> Shift Closed — corrections go through Daily Records (Admin)
+          </span>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleClose}
+              disabled={closing}
+              className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm disabled:opacity-60"
+            >
+              <Lock size={14} /> {closing ? "Closing…" : "Save & Close Shift"}
+            </button>
+          </div>
+        )}
       </div>
+
+      {closeError && (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mt-3">
+          {closeError}
+        </div>
+      )}
     </div>
   );
 }

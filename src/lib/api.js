@@ -134,17 +134,35 @@ export const ExpenseAPI = {
   remove: (id) => request(`/expenses/${id}`, { method: "DELETE" }),
 };
 
-
-
 // ---- Attendance (core-services, payroll) --------------------------------
 // Maps to AttendanceRequest: { employeeId, branchId, date, timeIn, timeOut }
 // Independent from Sales Reports — feeds payroll, not sales.
 export const AttendanceAPI = {
-  list: () => request("/attendance"),
+  list: (params = {}) => {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== ""))
+    ).toString();
+    return request(`/attendance${qs ? `?${qs}` : ""}`);
+  },
   create: (attendanceRequest) =>
     request("/attendance", {
       method: "POST",
       body: JSON.stringify(attendanceRequest),
+    }),
+  today: (employeeId) =>
+    request(`/attendance/today?employeeId=${employeeId}`).catch((err) => {
+      if (err.message.includes("404") || err.message.toLowerCase().includes("not found")) return null;
+      throw err;
+    }),
+  clockIn: (employeeId, branchId) =>
+    request("/attendance/clock-in", {
+      method: "POST",
+      body: JSON.stringify({ employeeId, branchId }),
+    }),
+  clockOut: (employeeId) =>
+    request("/attendance/clock-out", {
+      method: "POST",
+      body: JSON.stringify({ employeeId }),
     }),
 };
 
@@ -166,6 +184,16 @@ export const CashSummaryAPI = {
       method: "POST",
       body: JSON.stringify(cashSummaryRequest),
     }),
+  close: (date, branchId, actorEmployeeId) =>
+    request("/cash-summaries/close", {
+      method: "POST",
+      body: JSON.stringify({ date, branchId, actorEmployeeId }),
+    }),
+  reopen: (date, branchId, actorEmployeeId) =>
+    request("/cash-summaries/reopen", {
+      method: "POST",
+      body: JSON.stringify({ date, branchId, actorEmployeeId }),
+    }),
 };
 
 // ---- Sales Reports (core-services) --------------------------------------
@@ -185,4 +213,5 @@ export const SalesReportAPI = {
       method: "POST",
       body: JSON.stringify(salesReportRequest),
     }),
+  remove: (id) => request(`/sales-reports/${id}`, { method: "DELETE" }),
 };

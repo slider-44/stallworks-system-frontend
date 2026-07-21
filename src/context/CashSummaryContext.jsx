@@ -30,7 +30,19 @@ export function CashSummaryProvider({ children }) {
     return saved;
   }, []);
 
-  const value = { current, loading, load, save };
+  const closeShift = useCallback(async (date, branchId, actorEmployeeId) => {
+    const updated = await CashSummaryAPI.close(date, branchId, actorEmployeeId);
+    setCurrent(updated);
+    return updated;
+  }, []);
+
+  const reopenShift = useCallback(async (date, branchId, actorEmployeeId) => {
+    const updated = await CashSummaryAPI.reopen(date, branchId, actorEmployeeId);
+    setCurrent(updated);
+    return updated;
+  }, []);
+
+  const value = { current, loading, load, save, closeShift, reopenShift };
 
   return <CashSummaryContext.Provider value={value}>{children}</CashSummaryContext.Provider>;
 }

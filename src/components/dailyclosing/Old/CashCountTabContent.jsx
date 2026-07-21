@@ -65,9 +65,7 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
 
   // Fixed: Petty Cash is SUBTRACTED (kept aside, not remitted), GCash is
   // ADDED — now matches Shift Reconciliation's "Amount to Remit" formula.
-  // Amount to Remit is cash only — GCash is already in the owner's
-  // account automatically, nothing to physically hand over there.
-  const totalToRemit = totalCash - Number(pettyCashNextday || 0);
+  const totalToRemit = totalCash - Number(pettyCashNextday || 0) + Number(gcash || 0);
 
   const money = (n) =>
     `₱${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -307,7 +305,8 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
               <span className="font-bold text-red-500">- {money(pettyCashNextday)}</span>
             </div>
             <div className="flex items-center justify-between py-1 text-sm border-b border-slate-100 pb-2.5">
-              <span className="text-slate-500 text-xs">GCash ({money(gcash)}) already in owner's account — not remitted</span>
+              <span className="text-slate-600">Plus: GCash</span>
+              <span className="font-bold text-emerald-600">+ {money(gcash)}</span>
             </div>
 
             <div className="bg-emerald-50 rounded-xl px-3.5 py-2.5 mt-3 flex items-center justify-between">

@@ -13,7 +13,7 @@ import {
   ChefHat,
   X,
 } from "lucide-react";
-import { useCurrentUser } from "../../context/CurrentUserContext";
+import { useAuth } from "../../context/AuthContext";
 
 function buildNavSections(isAdmin) {
   const sections = [
@@ -46,7 +46,10 @@ function buildNavSections(isAdmin) {
     sections.push({
       label: "Admin",
       icon: ShieldCheck,
-      children: [{ label: "Container Prices", to: "/admin/container-prices" }],
+      children: [
+        { label: "Container Prices", to: "/admin/container-prices" },
+        { label: "Daily Records", to: "/admin/daily-records" },
+      ],
     });
   }
 
@@ -167,7 +170,7 @@ function SidebarContent({ navSections, openIndex, setOpenIndex, onNavigate }) {
 }
 
 export default function Sidebar({ mobileOpen, onClose }) {
-  const { isAdmin } = useCurrentUser();
+  const { isAdmin } = useAuth();
   const navSections = buildNavSections(isAdmin);
   const location = useLocation();
 

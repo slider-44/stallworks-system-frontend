@@ -56,7 +56,13 @@ export function SalesProvider({ children }) {
     return saved;
   }, []);
 
-  const value = { salesReports, loading, current, refresh: loadAll, loadCurrent, addSalesReport };
+  const deleteSalesReport = useCallback(async (id) => {
+    await SalesReportAPI.remove(id);
+    setSalesReports((prev) => prev.filter((r) => r.id !== id));
+    setCurrent((prev) => (prev?.id === id ? null : prev));
+  }, []);
+
+  const value = { salesReports, loading, current, refresh: loadAll, loadCurrent, addSalesReport, deleteSalesReport };
 
   return <SalesContext.Provider value={value}>{children}</SalesContext.Provider>;
 }
