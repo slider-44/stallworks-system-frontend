@@ -2,16 +2,13 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChefHat, Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { useAccountManagement } from "../context/AccountManagementContext";
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const { employees, loading: employeesLoading } = useAccountManagement();
   const navigate = useNavigate();
 
   const [userName, setUserName] = useState("");
   const [password, setPassword] = useState("");
-  const [employeeId, setEmployeeId] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -20,7 +17,7 @@ export default function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await login({ userName, password, employeeId });
+      await login({ userName, password });
       navigate("/");
     } catch (err) {
       setError(err.message);
@@ -59,30 +56,6 @@ export default function LoginPage() {
               placeholder="Enter your password"
               className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
             />
-          </div>
-
-          {/* MOCK ONLY — stand-in until POST /v1/auth/login exists. Username
-              and password above aren't actually verified yet; this picker
-              is what determines who you're "logged in" as for now. Remove
-              this field once real login is wired up. */}
-          <div className="border border-amber-200 bg-amber-50 rounded-lg p-3">
-            <label className="block text-xs font-semibold text-amber-700 mb-1">
-              Log in as (dev only — no backend auth yet)
-            </label>
-            <select
-              value={employeeId}
-              onChange={(e) => setEmployeeId(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200"
-            >
-              <option value="">
-                {employeesLoading ? "Loading employees…" : "Select employee"}
-              </option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.firstName} {emp.lastName} {emp.role ? `— ${emp.role}` : ""}
-                </option>
-              ))}
-            </select>
           </div>
 
           {error && (

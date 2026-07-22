@@ -14,9 +14,23 @@
 const CORE_API_BASE = import.meta.env.VITE_CORE_API_BASE_URL || "/api/v1";
 const AUTH_API_BASE = import.meta.env.VITE_AUTH_API_BASE_URL || "/api/v1";
 
+// Bearer token from the current session (see AuthContext). Kept in memory
+// only, never persisted — set on login, cleared on logout. Attached to
+// every request below so calls are ready for when the backend starts
+// enforcing JWT auth on protected endpoints (auth-service doesn't yet;
+// SecurityConfig currently permits all requests).
+let authToken = null;
+export function setAuthToken(token) {
+  authToken = token;
+}
+
 async function requestWithBase(base, path, options = {}) {
   const res = await fetch(`${base}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...(options.headers || {}),
+    },
     ...options,
   });
 
@@ -64,6 +78,17 @@ export const AccountAPI = {
     authRequest("/accounts", {
       method: "POST",
       body: JSON.stringify(accountRequest),
+    }),
+};
+
+// ---- Auth (auth-service) -------------------------------------------------
+// Maps to LoginRequest: { userName, password }
+// Returns LoginResponse: { token, tokenType } (tokenType is always "Bearer").
+export const AuthAPI = {
+  login: (loginRequest) =>
+    authRequest("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(loginRequest),
     }),
 };
 

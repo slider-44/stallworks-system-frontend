@@ -1,55 +1,77 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
 import { useAccountManagement } from "./AccountManagementContext";
+import { AuthAPI, setAuthToken } from "../lib/api";
 
 const AuthContext = createContext(null);
 
-// MOCK LOGIN — there's no real backend auth endpoint yet (no password
-// hashing, no /v1/auth/login). This context produces a REALISTIC
-// currentUser (a real employeeId, looked up against real Employee data)
-// so the rest of the app — auto-populating Crew/Branch, showing the
-// logged-in name in the Topbar, gating the Admin nav — can be built and
-// tested now, without waiting on the backend.
+// Decodes a JWT payload without verifying the signature — verification is
+// the backend's job (JwtService, HS512). This is only used client-side to
+// read the claims (sub/employeeId/role/exp) the backend already put there
+// (see JwtService#generateToken) so the UI can show who's logged in.
+function decodeJwtPayload(token) {
+  const payload = token.split(".")[1];
+  const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+  const json = decodeURIComponent(
+    atob(base64)
+      .split("")
+      .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+      .join("")
+  );
+  return JSON.parse(json);
+}
+
+// Real login against POST /api/v1/auth/login (AuthController). Credentials
+// are verified server-side against the Account table (bcrypt); a valid
+// login returns a signed JWT carrying { sub: userName, employeeId, role, exp }.
 //
-// SHARED TERMINAL — deliberately NOT persisted to localStorage. This is
-// used on one device by multiple staff members throughout the day; a
-// refresh or reopen must always show a fresh login, never silently
-// inherit whoever used the terminal last. Session lives in memory only.
-//
-// TO REPLACE LATER: swap `login()`'s body for a real POST /v1/auth/login
-// call. Everything downstream (currentUser shape, isAdmin, branchIds)
-// stays the same — only how `employeeId` gets determined changes.
+// SHARED TERMINAL — deliberately NOT persisted to localStorage/sessionStorage.
+// This is used on one device by multiple staff members throughout the day; a
+// refresh or reopen must always show a fresh login, never silently inherit
+// whoever used the terminal last. Session (token + claims) lives in memory
+// only, and is lost on refresh by design.
 export function AuthProvider({ children }) {
   const { employees } = useAccountManagement();
 
-  const [employeeId, setEmployeeId] = useState(null);
+  const [session, setSession] = useState(null); // { token, userName, employeeId, role, exp }
+
+  const employeeId = session?.employeeId ?? null;
 
   const currentEmployee = useMemo(
     () => employees.find((e) => String(e.id) === String(employeeId)) || null,
     [employees, employeeId]
   );
 
-  const isAuthenticated = !!employeeId;
+  const isTokenLive = !!session && session.exp * 1000 > Date.now();
+  const isAuthenticated = isTokenLive;
   const currentEmployeeName = currentEmployee
     ? `${currentEmployee.firstName} ${currentEmployee.lastName}`
-    : "";
-  const role = currentEmployee?.role || null;
+    : session?.userName || "";
+  // Role comes from the Account record via the JWT claim — the source of
+  // truth for authorization, not the Employee record in core-services.
+  const role = session?.role || null;
   const isAdmin = role === "ADMIN" || role === "MANAGER";
   const branchIds = currentEmployee?.branchIds || [];
 
-  // MOCK: accepts any non-empty username/password, but requires picking
-  // a real employee to "log in as" (dev-only stand-in for real credential
-  // verification against the Account table).
-  const login = async ({ userName, password, employeeId: pickedEmployeeId }) => {
+  const login = async ({ userName, password }) => {
     if (!userName?.trim() || !password?.trim()) {
       throw new Error("Enter a username and password");
     }
-    if (!pickedEmployeeId) {
-      throw new Error("Select which employee to log in as");
-    }
-    setEmployeeId(pickedEmployeeId);
+    const { token } = await AuthAPI.login({ userName: userName.trim(), password });
+    const claims = decodeJwtPayload(token);
+    setAuthToken(token);
+    setSession({
+      token,
+      userName: claims.sub,
+      employeeId: claims.employeeId,
+      role: claims.role,
+      exp: claims.exp,
+    });
   };
 
-  const logout = () => setEmployeeId(null);
+  const logout = () => {
+    setAuthToken(null);
+    setSession(null);
+  };
 
   const value = {
     employeeId,
