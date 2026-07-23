@@ -9,7 +9,7 @@ import { useCashSummary } from "../../context/CashSummaryContext";
 import SalesTabContent from "./SalesTabContent";
 import CashCountTabContent from "./CashCountTabContent";
 import ExpensesTab from "../sales/ExpensesTab";
-import LiveSummaryTop from "./LiveSummaryTop";
+import ReconciliationPage from "./ReconciliationPage";
 import Toast from "../ui/Toast";
 import { todayISO } from "../../lib/dateUtils";
 
@@ -44,6 +44,7 @@ export default function DailyClosingReportPage() {
   const [timeOut, setTimeOut] = useState("");
 
   // "main" = Sales + Expenses side by side. "cashcount" = Cash Count, full width.
+  // "reconciliation" = Shift Reconciliation, shown only after Cash Count is saved.
   const [activeView, setActiveView] = useState("main");
 
   const [pettyCashYesterday, setPettyCashYesterday] = useState("");
@@ -58,6 +59,7 @@ export default function DailyClosingReportPage() {
 
   const [salesSaved, setSalesSaved] = useState(false);
   const [expensesSaved, setExpensesSaved] = useState(false);
+  const [cashCountSaved, setCashCountSaved] = useState(false);
   const [footerSaving, setFooterSaving] = useState(false);
   const [footerSaveSuccess, setFooterSaveSuccess] = useState(false);
 
@@ -65,6 +67,7 @@ export default function DailyClosingReportPage() {
   useEffect(() => {
     setSalesSaved(false);
     setExpensesSaved(false);
+    setCashCountSaved(false);
     setFooterSaveSuccess(false);
   }, [date, branchId]);
 
@@ -156,7 +159,7 @@ export default function DailyClosingReportPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-5">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-teal-700 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-[#8f1d1d] flex items-center justify-center shrink-0">
                 <ClipboardList size={18} className="text-white" />
               </div>
               <div>
@@ -164,31 +167,31 @@ export default function DailyClosingReportPage() {
                 <p className="text-xs text-slate-400">Sales, expenses, and cash count for one day, one branch.</p>
               </div>
             </div>
-            <button className="h-11 flex items-center gap-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold px-4 rounded-lg shadow-sm shrink-0">
+            <button className="h-11 flex items-center gap-2 bg-[#8f1d1d] hover:bg-[#7a1414] text-white text-sm font-semibold px-4 rounded-lg shadow-sm shrink-0">
               <Search size={15} /> Search
             </button>
           </div>
 
           <div className="flex flex-wrap gap-4 mt-4">
             <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-[#b3362c] whitespace-nowrap">
                 <Calendar size={13} /> Date
               </label>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors"
+                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#f2c2be] hover:border-[#e8a39c] transition-colors"
               />
             </div>
             <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-[#b3362c] whitespace-nowrap">
                 <Building2 size={13} /> Branch
               </label>
               <select
                 value={branchId}
                 onChange={(e) => setBranchId(e.target.value)}
-                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors min-w-[150px]"
+                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#f2c2be] hover:border-[#e8a39c] transition-colors min-w-[150px]"
               >
                 <option value="">Select branch</option>
                 {branches.map((b) => (
@@ -199,13 +202,13 @@ export default function DailyClosingReportPage() {
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-[#b3362c] whitespace-nowrap">
                 <Users size={13} /> Crew
               </label>
               <select
                 value={employeeId}
                 onChange={(e) => setEmployeeId(e.target.value)}
-                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors min-w-[150px]"
+                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#f2c2be] hover:border-[#e8a39c] transition-colors min-w-[150px]"
               >
                 <option value="">Select crew</option>
                 {employees.map((emp) => (
@@ -216,81 +219,104 @@ export default function DailyClosingReportPage() {
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-[#b3362c] whitespace-nowrap">
                 <Clock size={13} /> Time In
               </label>
               <input
                 type="time"
                 value={timeIn}
                 onChange={(e) => setTimeIn(e.target.value)}
-                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors"
+                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#f2c2be] hover:border-[#e8a39c] transition-colors"
               />
             </div>
             <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 whitespace-nowrap">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-[#b3362c] whitespace-nowrap">
                 <Clock size={13} /> Time Out
               </label>
               <input
                 type="time"
                 value={timeOut}
                 onChange={(e) => setTimeOut(e.target.value)}
-                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 hover:border-teal-300 transition-colors"
+                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#f2c2be] hover:border-[#e8a39c] transition-colors"
               />
             </div>
           </div>
         </div>
       )}
 
-      {activeView === "main" ? (
-        /* Sales & Expenses — original, simple step indicator, unchanged */
-        <div className="flex items-center gap-3 mb-5">
-          <button onClick={() => setActiveView("main")} className="flex items-center gap-2">
-            <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-teal-700 text-white">
-              1
-            </span>
-            <span className="text-sm font-semibold text-teal-700">Sales &amp; Expenses</span>
-          </button>
-          <div className="w-10 h-px bg-slate-200" />
-          <button onClick={() => setActiveView("cashcount")} className="flex items-center gap-2">
-            <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-slate-200 text-slate-500">
-              2
-            </span>
-            <span className="text-sm font-semibold text-slate-400">Cash Count</span>
-          </button>
+      {/* Breadcrumb — Sales & Expenses -> Cash Count -> Reconciliation. Only
+          steps already reached are clickable. */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 px-5 py-4 mb-5 flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+        <button onClick={() => setActiveView("main")} className="flex items-center gap-2">
+          <span
+            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+              activeView === "main" ? "bg-[#8f1d1d] text-white" : "bg-emerald-100 text-emerald-700"
+            }`}
+          >
+            {activeView === "main" ? "1" : <CheckCircle2 size={14} />}
+          </span>
+          <span className={`text-sm font-semibold ${activeView === "main" ? "text-[#8f1d1d]" : "text-slate-400"}`}>
+            Sales &amp; Expenses
+          </span>
+        </button>
+        <div className="w-10 h-px bg-slate-200" />
+        <button
+          onClick={() => (salesSaved && expensesSaved ? setActiveView("cashcount") : null)}
+          className="flex items-center gap-2"
+        >
+          <span
+            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+              activeView === "cashcount"
+                ? "bg-[#8f1d1d] text-white"
+                : activeView === "reconciliation"
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-slate-200 text-slate-500"
+            }`}
+          >
+            {activeView === "reconciliation" ? <CheckCircle2 size={14} /> : "2"}
+          </span>
+          <span
+            className={`text-sm font-semibold ${activeView === "cashcount" ? "text-[#8f1d1d]" : "text-slate-400"}`}
+          >
+            Cash Count
+          </span>
+        </button>
+        <div className="w-10 h-px bg-slate-200" />
+        <button
+          onClick={() => (cashCountSaved ? setActiveView("reconciliation") : null)}
+          className="flex items-center gap-2"
+        >
+          <span
+            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+              activeView === "reconciliation" ? "bg-[#8f1d1d] text-white" : "bg-slate-200 text-slate-500"
+            }`}
+          >
+            3
+          </span>
+          <span
+            className={`text-sm font-semibold ${activeView === "reconciliation" ? "text-[#8f1d1d]" : "text-slate-400"}`}
+          >
+            Reconciliation
+          </span>
+        </button>
         </div>
-      ) : (
-        /* Cash Count — bigger combined bar with Date/Cashier/Location */
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 px-8 py-7 mb-5 flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-5">
-            <button onClick={() => setActiveView("main")} className="flex items-center gap-3">
-              <span className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold bg-emerald-100 text-emerald-700">
-                <CheckCircle2 size={26} />
-              </span>
-              <span className="text-xl font-bold text-slate-500">Sales &amp; Expenses</span>
-            </button>
-            <div className="w-20 h-px bg-slate-200" />
-            <button onClick={() => setActiveView("cashcount")} className="flex items-center gap-3">
-              <span className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold bg-teal-700 text-white">
-                2
-              </span>
-              <span className="text-xl font-bold text-teal-700">Cash Count</span>
-            </button>
-          </div>
 
-          <div className="flex items-center gap-6 text-base text-slate-600">
+        {(activeView === "cashcount" || activeView === "reconciliation") && (
+          <div className="flex items-center gap-5 flex-wrap text-sm text-slate-600">
             <span className="flex items-center gap-2">
-              <Calendar size={18} className="text-teal-600" /> {date}
+              <Calendar size={15} className="text-[#b3362c]" /> {date}
             </span>
             <span className="flex items-center gap-2">
-              <Users size={18} className="text-teal-600" /> {employeeName || "—"}
+              <Users size={15} className="text-[#b3362c]" /> {employeeName || "—"}
             </span>
             <span className="flex items-center gap-2">
-              <Building2 size={18} className="text-teal-600" />
+              <Building2 size={15} className="text-[#b3362c]" />
               {branches.find((b) => String(b.id) === String(branchId))?.name || "—"}
             </span>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Sales + Expenses side by side */}
       <div style={{ display: activeView === "main" ? "grid" : "none" }} className="grid-cols-1 lg:grid-cols-2 gap-5">
@@ -347,12 +373,12 @@ export default function DailyClosingReportPage() {
           <div className="hidden sm:block w-px h-10 bg-slate-100" />
 
           <div className="flex items-center gap-3 flex-1">
-            <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-              <Wallet size={16} className="text-indigo-600" />
+            <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+              <Wallet size={16} className="text-amber-700" />
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500">Expected Cash</p>
-              <p className="text-lg font-bold text-indigo-600">
+              <p className="text-lg font-bold text-amber-700">
                 ₱{(totalSales + Number(pettyCashYesterday || 0) - totalExpenses).toFixed(2)}
               </p>
               <p className="text-xs text-slate-400">Gross Sales − Expenses</p>
@@ -371,7 +397,7 @@ export default function DailyClosingReportPage() {
                   if (salesResult?.ok && expensesResult?.ok) setFooterSaveSuccess(true);
                 }}
                 disabled={footerSaving}
-                className="flex items-center gap-2 border border-teal-200 text-teal-700 hover:bg-teal-50 text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-60"
+                className="flex items-center gap-2 border border-[#f2c2be] text-[#8f1d1d] hover:bg-[#fff8f6] text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-60"
               >
                 {footerSaving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
                 Save
@@ -380,7 +406,7 @@ export default function DailyClosingReportPage() {
                 onClick={() => setActiveView("cashcount")}
                 disabled={!(salesSaved && expensesSaved)}
                 title={!(salesSaved && expensesSaved) ? "Save Sales and Expenses first" : ""}
-                className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-teal-700"
+                className="flex items-center gap-2 bg-[#8f1d1d] hover:bg-[#7a1414] text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#8f1d1d]"
               >
                 Continue to Cash Count <ArrowRight size={15} />
               </button>
@@ -395,7 +421,7 @@ export default function DailyClosingReportPage() {
 
       {/* Cash Count, full width */}
       <div style={{ display: activeView === "cashcount" ? "block" : "none" }}>
-        <div className="relative mb-5">
+        <div className="relative">
           {isShiftClosed && <LockOverlay />}
           <CashCountTabContent
             ref={cashCountTabRef}
@@ -410,14 +436,17 @@ export default function DailyClosingReportPage() {
             onPettyCashNextdayChange={setPettyCashNextday}
             onActualCashChange={setActualCash}
             onBack={() => setActiveView("main")}
+            onSaved={() => setCashCountSaved(true)}
+            canContinue={cashCountSaved}
+            onContinue={() => setActiveView("reconciliation")}
           />
         </div>
+      </div>
 
-        {/* Shift Reconciliation — after Cash Count, since that's the one
-            point where Sales, Expenses, and Cash are all real. Step 1
-            relies on the footer bar instead (Gross Sales / Total Expenses
-            / Expected Cash), since Actual Cash doesn't exist there yet. */}
-        <LiveSummaryTop
+      {/* Shift Reconciliation — its own step, only reachable once Cash Count
+          has been saved (see the breadcrumb + Continue button above). */}
+      {activeView === "reconciliation" && (
+        <ReconciliationPage
           date={date}
           timeIn={timeIn}
           timeOut={timeOut}
@@ -431,7 +460,7 @@ export default function DailyClosingReportPage() {
           isShiftClosed={isShiftClosed}
           onCloseShift={() => closeShift(date, branchId, Number(loggedInEmployeeId))}
         />
-      </div>
+      )}
 
       <Toast
         show={footerSaveSuccess}

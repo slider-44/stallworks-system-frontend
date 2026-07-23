@@ -159,7 +159,7 @@ export default function LiveSummaryTop({
             </span>
           </div>
         </div>
-        <button className="flex items-center gap-1.5 text-xs font-semibold text-teal-700 border border-teal-200 rounded-full px-3 py-1.5 hover:bg-teal-50">
+        <button className="flex items-center gap-1.5 text-xs font-semibold text-[#8f1d1d] border border-[#f2c2be] rounded-full px-3 py-1.5 hover:bg-[#fff8f6]">
           <Pencil size={12} /> Update as you type
         </button>
       </div>
@@ -273,13 +273,13 @@ export default function LiveSummaryTop({
             <p className="text-2xl font-extrabold text-blue-700 mt-1">{money(totalReceived)}</p>
           </div>
 
-          <div className="bg-teal-50 rounded-xl p-4">
+          <div className="bg-[#fbe4e2] rounded-xl p-4">
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
-                <Scale size={14} className="text-teal-700" />
+              <div className="w-8 h-8 rounded-lg bg-[#f2c2be] flex items-center justify-center shrink-0">
+                <Scale size={14} className="text-[#8f1d1d]" />
               </div>
               <div>
-                <p className="text-xs font-bold text-teal-700 uppercase tracking-wide leading-tight">Variance</p>
+                <p className="text-xs font-bold text-[#8f1d1d] uppercase tracking-wide leading-tight">Variance</p>
                 <p className="text-xs text-slate-500 leading-tight">Expected - Actual</p>
               </div>
             </div>
@@ -307,7 +307,7 @@ export default function LiveSummaryTop({
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-5">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-sm font-semibold text-teal-700 border border-teal-200 rounded-lg px-4 py-2.5 hover:bg-teal-50"
+          className="flex items-center gap-2 text-sm font-semibold text-[#8f1d1d] border border-[#f2c2be] rounded-lg px-4 py-2.5 hover:bg-[#fff8f6]"
         >
           <ArrowLeft size={14} /> Back to Cash Count
         </button>
@@ -321,7 +321,7 @@ export default function LiveSummaryTop({
             <button
               onClick={handleClose}
               disabled={closing}
-              className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm disabled:opacity-60"
+              className="flex items-center gap-2 bg-[#8f1d1d] hover:bg-[#7a1414] text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm disabled:opacity-60"
             >
               <Lock size={14} /> {closing ? "Closing…" : "Save & Close Shift"}
             </button>
