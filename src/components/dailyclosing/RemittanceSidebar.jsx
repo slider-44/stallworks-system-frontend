@@ -52,17 +52,17 @@ export default function RemittanceSidebar({
     <div className="relative sticky top-4">
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 pb-8">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-            <Wallet size={18} className="text-indigo-600" />
+          <div className="w-10 h-10 rounded-full bg-[#f7e9d8] flex items-center justify-center shrink-0">
+            <Wallet size={18} className="text-[#a3672a]" />
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-indigo-600">Cash</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-[#a3672a]">Cash</p>
             <p className="text-lg font-bold text-slate-900 -mt-0.5">Remittance</p>
           </div>
         </div>
 
-        <div className="bg-indigo-50 rounded-2xl p-3">
-          <Row Icon={Coins} iconBg="bg-indigo-100" iconColor="text-indigo-600" label="Actual Cash" value={actualCash} />
+        <div className="bg-[#f7e9d8] rounded-2xl p-3">
+          <Row Icon={Coins} iconBg="bg-[#f0dcc0]" iconColor="text-[#a3672a]" label="Actual Cash" value={actualCash} />
           <Row
             Icon={ArrowDown}
             iconBg="bg-red-100"
@@ -73,11 +73,11 @@ export default function RemittanceSidebar({
             editable
             onChange={onPettyCashNextdayChange}
           />
-          <Row Icon={RefreshCw} iconBg="bg-indigo-100" iconColor="text-indigo-600" label="Cash Remittance" value={cashRemittance} />
+          <Row Icon={RefreshCw} iconBg="bg-[#f0dcc0]" iconColor="text-[#a3672a]" label="Cash Remittance" value={cashRemittance} />
           <Row Icon={ArrowUp} iconBg="bg-emerald-100" iconColor="text-emerald-600" label="GCash Remittance (+)" value={gcashRemittance} tone="green" />
         </div>
 
-        <div className="mt-4 rounded-2xl bg-teal-900 px-4 py-4 flex items-center gap-3">
+        <div className="mt-4 rounded-2xl bg-[#3d0b0b] px-4 py-4 flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center shrink-0">
             <Coins size={15} className="text-white" />
           </div>

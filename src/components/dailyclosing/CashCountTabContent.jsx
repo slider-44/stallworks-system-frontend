@@ -12,6 +12,7 @@ import {
   Trash2,
   Pencil,
   ReceiptText,
+  ArrowRight,
 } from "lucide-react";
 import { useCashSummary } from "../../context/CashSummaryContext";
 import { useAuth } from "../../context/AuthContext";
@@ -23,7 +24,22 @@ const COINS = [10, 5, 1];
 const ALL_DENOMINATIONS = [...BILLS, ...COINS];
 
 const CashCountTabContent = forwardRef(function CashCountTabContent(
-  { date, timeIn, timeOut, branchId, pettyCashYesterday, gcash, onGcashChange, pettyCashNextday, onPettyCashNextdayChange, onActualCashChange, onBack },
+  {
+    date,
+    timeIn,
+    timeOut,
+    branchId,
+    pettyCashYesterday,
+    gcash,
+    onGcashChange,
+    pettyCashNextday,
+    onPettyCashNextdayChange,
+    onActualCashChange,
+    onBack,
+    onSaved,
+    onContinue,
+    canContinue,
+  },
   ref
 ) {
   const { current, save } = useCashSummary();
@@ -129,6 +145,7 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
         })),
       });
       setSuccess(true);
+      onSaved?.();
       return { ok: true };
     } catch (err) {
       setApiError(err.message);
@@ -155,7 +172,7 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
         value={value}
         onChange={(e) => onChange(Number(e.target.value) || 0)}
         onWheel={(e) => e.target.blur()}
-        className="no-spinner w-10 text-center font-bold text-teal-800 bg-teal-50 border-2 border-teal-200 rounded-md px-0.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300"
+        className="no-spinner w-10 text-center font-bold text-[#8f1d1d] bg-[#fbe4e2] border-2 border-[#f2c2be] rounded-md px-0.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#e8a39c]"
       />
       <button
         type="button"
@@ -170,7 +187,7 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
   const DenominationTable = ({ icon: Icon, title, denoms }) => (
     <div>
       <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3.5 py-2.5 mb-3">
-        <Icon size={16} className="text-teal-700" />
+        <Icon size={16} className="text-[#8f1d1d]" />
         <p className="text-sm font-bold text-slate-800 uppercase tracking-wide">{title}</p>
       </div>
       <table className="w-full text-sm table-fixed">
@@ -220,8 +237,8 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
             <div>
               <DenominationTable icon={Coins} title="Coins" denoms={COINS} />
               <div className="bg-slate-50 rounded-lg px-4 py-3 flex items-center justify-between mt-3">
-                <p className="text-xs font-bold uppercase tracking-wide text-teal-700">Subtotal Cash</p>
-                <span className="text-lg font-extrabold text-teal-700">{money(totalCash)}</span>
+                <p className="text-xs font-bold uppercase tracking-wide text-[#8f1d1d]">Subtotal Cash</p>
+                <span className="text-lg font-extrabold text-[#8f1d1d]">{money(totalCash)}</span>
               </div>
             </div>
           </div>
@@ -230,8 +247,8 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
         {/* Additional Items — own box */}
         <div className="md:col-span-4 bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-9 h-9 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
-              <Wallet size={16} className="text-teal-700" />
+            <div className="w-9 h-9 rounded-lg bg-[#fbe4e2] flex items-center justify-center shrink-0">
+              <Wallet size={16} className="text-[#8f1d1d]" />
             </div>
             <div>
               <p className="text-sm font-bold text-slate-900 uppercase tracking-wide leading-tight">Additional Items</p>
@@ -255,7 +272,7 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
                 <button
                   type="button"
                   onClick={openPettyCashModal}
-                  className="flex items-center gap-1 text-xs font-semibold text-teal-700 border border-teal-200 rounded-full px-3 py-1 hover:bg-teal-50 whitespace-nowrap"
+                  className="flex items-center gap-1 text-xs font-semibold text-[#8f1d1d] border border-[#f2c2be] rounded-full px-3 py-1 hover:bg-[#fff8f6] whitespace-nowrap"
                 >
                   <Pencil size={11} /> Edit
                 </button>
@@ -277,7 +294,7 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
                 <button
                   type="button"
                   onClick={openGcashModal}
-                  className="flex items-center gap-1 text-xs font-semibold text-teal-700 border border-teal-200 rounded-full px-3 py-1 hover:bg-teal-50 whitespace-nowrap"
+                  className="flex items-center gap-1 text-xs font-semibold text-[#8f1d1d] border border-[#f2c2be] rounded-full px-3 py-1 hover:bg-[#fff8f6] whitespace-nowrap"
                 >
                   <Pencil size={11} /> Edit
                 </button>
@@ -294,8 +311,8 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
               narrow column, not a separate full-width section */}
           <div className="border border-slate-100 rounded-2xl p-4 mt-4">
             <div className="flex items-center gap-2 mb-3">
-              <ReceiptText size={15} className="text-teal-700" />
-              <p className="text-xs font-bold text-teal-700 uppercase tracking-wide">Remittance Summary</p>
+              <ReceiptText size={15} className="text-[#8f1d1d]" />
+              <p className="text-xs font-bold text-[#8f1d1d] uppercase tracking-wide">Remittance Summary</p>
             </div>
 
             <div className="flex items-center justify-between py-1 text-sm">
@@ -325,25 +342,38 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-5">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-sm font-semibold text-teal-700 border border-teal-200 rounded-lg px-4 py-2.5 hover:bg-teal-50"
+          className="flex items-center gap-2 text-sm font-semibold text-[#8f1d1d] border border-[#f2c2be] rounded-lg px-4 py-2.5 hover:bg-[#fff8f6]"
         >
           ← Back to Sales &amp; Expenses
         </button>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleResetCount}
-            className="flex items-center gap-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-lg px-4 py-2.5 hover:bg-slate-50"
-          >
-            <RotateCcw size={14} /> Reset Count
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={submitting}
-            className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm disabled:opacity-60"
-          >
-            {submitting ? <Loader2 size={14} className="animate-spin" /> : <Save size={15} />}
-            Save Cash Count
-          </button>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleResetCount}
+              className="flex items-center gap-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-lg px-4 py-2.5 hover:bg-slate-50"
+            >
+              <RotateCcw size={14} /> Reset Count
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={submitting}
+              className="flex items-center gap-2 bg-[#8f1d1d] hover:bg-[#7a1414] text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm disabled:opacity-60"
+            >
+              {submitting ? <Loader2 size={14} className="animate-spin" /> : <Save size={15} />}
+              Save Cash Count
+            </button>
+            <button
+              onClick={onContinue}
+              disabled={!canContinue}
+              title={!canContinue ? "Save Cash Count first" : ""}
+              className="flex items-center gap-2 bg-[#8f1d1d] hover:bg-[#7a1414] text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#8f1d1d]"
+            >
+              Continue to Reconciliation <ArrowRight size={15} />
+            </button>
+          </div>
+          <p className="flex items-center gap-1 text-xs text-slate-400">
+            {canContinue ? "Saved — ready to continue" : "Save Cash Count to continue"}
+          </p>
         </div>
       </div>
 
@@ -378,7 +408,7 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
               </button>
               <button
                 onClick={confirmPettyCash}
-                className="px-4 py-2 text-sm font-semibold rounded-lg bg-teal-700 text-white hover:bg-teal-800"
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-[#8f1d1d] text-white hover:bg-[#7a1414]"
               >
                 Save
               </button>
@@ -418,7 +448,7 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
               </button>
               <button
                 onClick={confirmGcash}
-                className="px-4 py-2 text-sm font-semibold rounded-lg bg-teal-700 text-white hover:bg-teal-800"
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-[#8f1d1d] text-white hover:bg-[#7a1414]"
               >
                 Save
               </button>

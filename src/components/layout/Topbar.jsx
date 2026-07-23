@@ -26,16 +26,16 @@ export default function Topbar({ onMenuClick }) {
   const clockedInNotOut = role === "STAFF" && today?.timeIn && !today?.timeOut;
 
   return (
-    <header className="h-16 bg-teal-900 flex items-center gap-4 px-4 sm:px-6">
+    <header className="h-16 bg-gradient-to-r from-[#8f1d1d] to-[#6b1414] flex items-center gap-4 px-4 sm:px-6">
       <button onClick={onMenuClick} className="lg:hidden p-2 rounded-md text-white hover:bg-white/10 shrink-0">
         <Menu size={20} />
       </button>
 
       <div className="flex-1 max-w-md relative">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-teal-200/70" />
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#f3d6cb]/70" />
         <input
           placeholder="Search reports, branches, crew..."
-          className="w-full pl-9 pr-3 py-2 rounded-full bg-white/10 text-sm text-white placeholder:text-teal-200/70 outline-none focus:ring-2 focus:ring-white/30"
+          className="w-full pl-9 pr-3 py-2 rounded-full bg-white/10 text-sm text-white placeholder:text-[#f3d6cb]/70 outline-none focus:ring-2 focus:ring-white/30"
         />
       </div>
 
@@ -71,11 +71,11 @@ export default function Topbar({ onMenuClick }) {
             <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white font-semibold text-sm ring-2 ring-white/30">
               {currentEmployeeName ? currentEmployeeName.charAt(0).toUpperCase() : "?"}
             </div>
-            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-teal-900" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[#3d0b0b]" />
           </div>
           <div className="hidden sm:block leading-tight text-left">
             <p className="text-sm font-semibold text-white">{currentEmployeeName || "—"}</p>
-            <p className="text-xs text-teal-200/70">{role ? role.charAt(0) + role.slice(1).toLowerCase() : ""}</p>
+            <p className="text-xs text-[#f3d6cb]/70">{role ? role.charAt(0) + role.slice(1).toLowerCase() : ""}</p>
           </div>
         </div>
 

@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+body {
+  font-family: 'Figtree', sans-serif;
+}
+
 .no-spinner::-webkit-inner-spin-button,
 .no-spinner::-webkit-outer-spin-button {
   -webkit-appearance: none;

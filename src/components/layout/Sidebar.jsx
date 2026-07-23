@@ -73,15 +73,15 @@ function SidebarItem({ item, index, openIndex, setOpenIndex }) {
         <button
           onClick={handleClick}
           className={`${baseClasses} ${
-            isOpen ? "bg-white/10 text-white" : "text-teal-100/70 hover:bg-white/10 hover:text-white"
+            isOpen ? "bg-white/10 text-white" : "text-[#f3d6cb]/70 hover:bg-white/10 hover:text-white"
           }`}
         >
           <item.icon size={17} className="shrink-0" />
           <span className="flex-1 text-left">{item.label}</span>
           {isOpen ? (
-            <ChevronDown size={15} className="text-teal-100/60" />
+            <ChevronDown size={15} className="text-[#f3d6cb]/60" />
           ) : (
-            <ChevronRight size={15} className="text-teal-100/40 group-hover:text-teal-100/70" />
+            <ChevronRight size={15} className="text-[#f3d6cb]/40 group-hover:text-[#f3d6cb]/70" />
           )}
         </button>
       ) : (
@@ -90,7 +90,7 @@ function SidebarItem({ item, index, openIndex, setOpenIndex }) {
           end={item.to === "/"}
           className={({ isActive }) =>
             `${baseClasses} ${
-              isActive ? "bg-white text-teal-800 shadow-sm" : "text-teal-100/70 hover:bg-white/10 hover:text-white"
+              isActive ? "bg-white text-[#8f1d1d] shadow-sm" : "text-[#f3d6cb]/70 hover:bg-white/10 hover:text-white"
             }`
           }
         >
@@ -115,7 +115,7 @@ function SidebarItem({ item, index, openIndex, setOpenIndex }) {
                     `block w-full text-left text-sm rounded-md px-3 py-1.5 ${
                       isActive
                         ? "text-white font-semibold bg-white/10"
-                        : "text-teal-100/60 hover:text-white hover:bg-white/5"
+                        : "text-[#f3d6cb]/60 hover:text-white hover:bg-white/5"
                     }`
                   }
                 >
@@ -124,7 +124,7 @@ function SidebarItem({ item, index, openIndex, setOpenIndex }) {
               ) : (
                 <button
                   key={i}
-                  className="w-full text-left text-sm rounded-md px-3 py-1.5 text-teal-100/60 hover:text-white hover:bg-white/5"
+                  className="w-full text-left text-sm rounded-md px-3 py-1.5 text-[#f3d6cb]/60 hover:text-white hover:bg-white/5"
                 >
                   {child.label}
                 </button>
@@ -141,12 +141,12 @@ function SidebarContent({ navSections, openIndex, setOpenIndex, onNavigate }) {
   return (
     <>
       <div className="flex items-center gap-3 px-5 h-20 border-b border-white/10">
-        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d0342c] to-[#8f1d1d] flex items-center justify-center shrink-0">
           <ChefHat size={20} className="text-white" />
         </div>
         <div>
-          <p className="font-bold text-white leading-tight">Takoyaki</p>
-          <p className="text-xs text-teal-200/70 leading-tight">POS</p>
+          <p className="font-bold text-white leading-tight" style={{ fontFamily: "'Caprasimo', serif" }}>Cylene's</p>
+          <p className="text-xs text-[#f3d6cb]/70 leading-tight">Takawyaki POS</p>
         </div>
       </div>
 
@@ -161,7 +161,7 @@ function SidebarContent({ navSections, openIndex, setOpenIndex, onNavigate }) {
       </nav>
 
       <div className="p-4 border-t border-white/10">
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-teal-100/70 hover:bg-white/10 hover:text-white">
+        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#f3d6cb]/70 hover:bg-white/10 hover:text-white">
           <LogOut size={17} /> Logout
         </button>
       </div>
@@ -193,7 +193,7 @@ export default function Sidebar({ mobileOpen, onClose }) {
   return (
     <>
       {/* Permanent sidebar — desktop only (>=1024px), unchanged */}
-      <aside className="hidden lg:flex w-64 flex-col bg-teal-900">
+      <aside className="hidden lg:flex w-64 flex-col bg-gradient-to-b from-[#3d0b0b] to-[#2c0808]">
         <SidebarContent navSections={navSections} openIndex={openIndex} setOpenIndex={setOpenIndex} />
       </aside>
 
@@ -201,10 +201,10 @@ export default function Sidebar({ mobileOpen, onClose }) {
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
-          <aside className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-teal-900 flex flex-col shadow-2xl">
+          <aside className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-gradient-to-b from-[#3d0b0b] to-[#2c0808] flex flex-col shadow-2xl">
             <button
               onClick={onClose}
-              className="absolute top-5 right-3 w-8 h-8 rounded-full flex items-center justify-center text-teal-100/70 hover:bg-white/10 hover:text-white"
+              className="absolute top-5 right-3 w-8 h-8 rounded-full flex items-center justify-center text-[#f3d6cb]/70 hover:bg-white/10 hover:text-white"
             >
               <X size={18} />
             </button>

@@ -27,39 +27,109 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-        <div className="flex flex-col items-center mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-teal-700 flex items-center justify-center mb-3">
-            <ChefHat size={26} className="text-white" />
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        background:
+          "radial-gradient(circle at 15% 10%, #7a1414 0%, #4a0d0d 45%, #2c0808 100%)",
+      }}
+    >
+      <div
+        className="w-full max-w-sm rounded-3xl p-8"
+        style={{
+          background: "#fff8ee",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.35)",
+          border: "1px solid rgba(255,255,255,0.4)",
+        }}
+      >
+        <div className="flex flex-col items-center mb-7">
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3.5"
+            style={{
+              background: "linear-gradient(135deg,#c62828,#8f1d1d)",
+              boxShadow: "0 8px 20px rgba(198,40,40,0.35)",
+            }}
+          >
+            <ChefHat size={28} className="text-white" strokeWidth={2.4} />
           </div>
-          <p className="font-bold text-lg text-slate-900">Takoyaki POS</p>
+          <p
+            className="text-center leading-tight"
+            style={{
+              fontFamily: "'Caprasimo', serif",
+              fontSize: 20,
+              color: "#5c1010",
+              maxWidth: 260,
+            }}
+          >
+            Cylene&rsquo;s Takawyaki
+          </p>
+          <p
+            className="text-xs font-semibold mt-2.5 uppercase"
+            style={{ color: "#a34b2a", letterSpacing: "1.5px" }}
+          >
+            Staff Point of Sale
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-teal-600 mb-1">Username</label>
+            <label
+              className="block text-xs font-bold mb-1.5"
+              style={{ color: "#8f1d1d" }}
+            >
+              Username
+            </label>
             <input
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
               placeholder="Enter your username"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+              className="w-full rounded-xl px-3.5 py-2.5 text-sm"
+              style={{
+                border: "1.5px solid #eddcc9",
+                background: "#fffefb",
+                color: "#3a2318",
+              }}
+              onFocus={(e) =>
+                (e.target.style.boxShadow = "0 0 0 3px rgba(198,40,40,0.18)")
+              }
+              onBlur={(e) => (e.target.style.boxShadow = "none")}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-teal-600 mb-1">Password</label>
+            <label
+              className="block text-xs font-bold mb-1.5"
+              style={{ color: "#8f1d1d" }}
+            >
+              Password
+            </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+              className="w-full rounded-xl px-3.5 py-2.5 text-sm"
+              style={{
+                border: "1.5px solid #eddcc9",
+                background: "#fffefb",
+                color: "#3a2318",
+              }}
+              onFocus={(e) =>
+                (e.target.style.boxShadow = "0 0 0 3px rgba(198,40,40,0.18)")
+              }
+              onBlur={(e) => (e.target.style.boxShadow = "none")}
             />
           </div>
 
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+            <div
+              className="text-sm rounded-lg px-3 py-2"
+              style={{
+                color: "#8f1d1d",
+                background: "#fbe4e2",
+                border: "1px solid #f2c2be",
+              }}
+            >
               {error}
             </div>
           )}
@@ -67,12 +137,25 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full flex items-center justify-center gap-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold py-2.5 rounded-lg shadow-sm disabled:opacity-60"
+            className="w-full flex items-center justify-center gap-2 text-sm font-bold py-3 rounded-full disabled:opacity-60 mt-1.5"
+            style={{
+              background: "linear-gradient(135deg,#d0342c,#8f1d1d)",
+              color: "#fff",
+              boxShadow: "0 8px 18px rgba(143,29,29,0.4)",
+              border: "none",
+            }}
           >
             {submitting && <Loader2 size={15} className="animate-spin" />}
             Log In
           </button>
         </form>
+
+        <p
+          className="text-center text-[11.5px] mt-6"
+          style={{ color: "#b98a6d" }}
+        >
+          Evergreen Executive Village, Bagumbong, Caloocan City
+        </p>
       </div>
     </div>
   );

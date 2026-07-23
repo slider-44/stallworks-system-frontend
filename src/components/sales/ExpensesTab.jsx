@@ -9,6 +9,11 @@ let draftSeq = 0;
 // are staged locally — nothing touches the backend until "Save" is
 // clicked. Only Delete stays immediate, since it's a decisive standalone
 // action, not something meant to be batched with everything else.
+//
+// Description is still stored (backend requires it, and "No expenses
+// recorded" relies on it), but it's no longer shown or asked for in the
+// UI — a plain amount log is all crew need day-to-day. It defaults to
+// "Expense" so existing rows without one still render sensibly.
 const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved }, ref) {
   const { expenses, loading, addExpenses, updateExpense, removeExpense } = useExpenses();
 
@@ -19,8 +24,8 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
   const [submitting, setSubmitting] = useState(false);
   const [rowBusyId, setRowBusyId] = useState(null);
 
-  // Staged edits to already-saved rows — { [expenseId]: { description, amount } }
-  // — not sent to the backend until Save.
+  // Staged edits to already-saved rows — { [expenseId]: { amount } } —
+  // not sent to the backend until Save.
   const [pendingEdits, setPendingEdits] = useState({});
 
   // Popup asking "confirm no expenses?" — shown instead of a blocking
@@ -35,6 +40,9 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
   const [modalDescription, setModalDescription] = useState("");
   const [modalAmount, setModalAmount] = useState("");
   const [modalError, setModalError] = useState(null);
+
+  const money = (n) =>
+    `₱${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   // What actually renders — saved rows with any staged (unsaved) edit
   // applied on top, so the user sees their change immediately even
@@ -67,7 +75,7 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
 
   const openEditExpense = (expense) => {
     setEditingTarget({ type: "saved", id: expense.id });
-    setModalDescription(expense.description);
+    setModalDescription(expense.description || "");
     setModalAmount(String(expense.amount));
     setModalError(null);
     setExpenseModalOpen(true);
@@ -75,7 +83,7 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
 
   const openEditDraft = (draft) => {
     setEditingTarget({ type: "draft", id: draft.id });
-    setModalDescription(draft.description);
+    setModalDescription(draft.description || "");
     setModalAmount(String(draft.amount));
     setModalError(null);
     setExpenseModalOpen(true);
@@ -85,7 +93,7 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
 
   const confirmExpenseModal = () => {
     if (!modalDescription.trim()) {
-      setModalError("Enter a description");
+      setModalError("Enter an item name");
       return;
     }
     if (!(Number(modalAmount) > 0)) {
@@ -177,7 +185,7 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
         const expenseRequests = drafts.map((draft) => ({
           date,
           branchId: Number(branchId),
-          description: draft.description.trim(),
+          description: draft.description,
           amount: Number(draft.amount),
         }));
         await addExpenses(expenseRequests);
@@ -191,7 +199,7 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
         await updateExpense(id, {
           date,
           branchId: Number(branchId),
-          description: pendingEdits[id].description,
+          description: pendingEdits[id].description ?? savedExpenses.find((e) => e.id === id)?.description,
           amount: pendingEdits[id].amount,
         });
       }
@@ -235,17 +243,17 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
     <div>
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-            <ReceiptText size={16} className="text-red-600" />
+          <div className="w-9 h-9 rounded-lg bg-[#f7e9d8] flex items-center justify-center shrink-0">
+            <ReceiptText size={16} className="text-[#a3672a]" />
           </div>
           <div>
             <p className="text-sm font-bold text-slate-900 leading-tight">Expenses</p>
-            <p className="text-xs text-slate-500 leading-tight">Add expenses for this shift</p>
+            <p className="text-xs text-slate-500 leading-tight">Log costs paid out during this shift</p>
           </div>
         </div>
         <button
           onClick={openAddExpense}
-          className="flex items-center gap-1.5 text-xs font-semibold text-teal-700 border border-teal-200 rounded-full px-3 py-1.5 hover:bg-teal-50"
+          className="flex items-center gap-1.5 text-xs font-semibold text-[#a3672a] bg-[#fdf6ea] border border-[#f0dcc0] rounded-full px-3 py-1.5 hover:bg-[#fbeedb]"
         >
           <Plus size={13} /> Add Expense
         </button>
@@ -265,92 +273,75 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="w-full text-sm min-w-[420px]">
-          <thead>
-            <tr className="bg-red-50 text-red-700 text-xs uppercase tracking-wide">
-              <th className="text-left font-semibold py-3 px-3">Description</th>
-              <th className="text-right font-semibold py-3 px-3 w-32">Amount (₱)</th>
-              <th className="text-right font-semibold py-3 px-3 w-20">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {savedExpenses.map((e, i) => {
-              const isBusy = rowBusyId === e.id;
-              const isPending = !!pendingEdits[e.id];
-              return (
-                <tr
-                  key={e.id ?? i}
-                  className={`border-b border-slate-100 last:border-0 ${
-                    isPending ? "bg-amber-50/40" : i % 2 === 0 ? "bg-slate-50" : "bg-white"
-                  }`}
+      <div className="flex flex-col gap-2.5">
+        {savedExpenses.map((e, i) => {
+          const isBusy = rowBusyId === e.id;
+          const isPending = !!pendingEdits[e.id];
+          return (
+            <div
+              key={e.id ?? i}
+              className="flex items-center justify-between px-3.5 py-3 rounded-xl border border-slate-100"
+            >
+              <div>
+                <p className="text-sm font-semibold text-slate-800 m-0">{e.description}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-slate-800">{money(e.amount)}</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => openEditExpense(e)}
+                    className="w-7 h-7 rounded-md bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                  <button
+                    onClick={() => deleteExisting(e.id)}
+                    disabled={isBusy}
+                    className="w-7 h-7 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 disabled:opacity-60"
+                  >
+                    {isBusy ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {drafts.map((d) => (
+          <div key={d.id} className="flex items-center justify-between px-3.5 py-3 rounded-xl border border-slate-100">
+            <div>
+              <p className="text-sm font-semibold text-slate-800 m-0">{d.description}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-bold text-slate-800">{money(d.amount)}</span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => openEditDraft(d)}
+                  className="w-7 h-7 rounded-md bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200"
                 >
-                  <td className="py-2.5 px-3 text-slate-700">
-                    {e.description}
-                    {isPending && <span className="ml-2 text-xs text-amber-600 font-medium">(unsaved edit)</span>}
-                  </td>
-                  <td className="py-2.5 px-3 text-right text-slate-700">{Number(e.amount).toFixed(2)}</td>
-                  <td className="py-2.5 px-3">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => openEditExpense(e)}
-                        className="w-7 h-7 rounded-md bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200"
-                      >
-                        <Pencil size={12} />
-                      </button>
-                      <button
-                        onClick={() => deleteExisting(e.id)}
-                        disabled={isBusy}
-                        className="w-7 h-7 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 disabled:opacity-60"
-                      >
-                        {isBusy ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+                  <Pencil size={12} />
+                </button>
+                <button
+                  onClick={() => removeDraft(d.id)}
+                  className="w-7 h-7 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 shrink-0"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
 
-            {drafts.map((d) => (
-              <tr key={d.id} className="bg-amber-50/40 border-b border-slate-100 last:border-0">
-                <td className="py-2.5 px-3 text-slate-700">
-                  {d.description}
-                  <span className="ml-2 text-xs text-amber-600 font-medium">(unsaved)</span>
-                </td>
-                <td className="py-2.5 px-3 text-right text-slate-700">{Number(d.amount).toFixed(2)}</td>
-                <td className="py-2.5 px-3">
-                  <div className="flex items-center justify-end gap-1.5">
-                    <button
-                      onClick={() => openEditDraft(d)}
-                      className="w-7 h-7 rounded-md bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200"
-                    >
-                      <Pencil size={12} />
-                    </button>
-                    <button
-                      onClick={() => removeDraft(d.id)}
-                      className="w-7 h-7 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 shrink-0"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-
-            {loading && (
-              <tr>
-                <td colSpan={3} className="py-6 text-center text-slate-400">
-                  <Loader2 size={16} className="inline animate-spin mr-2" /> Loading…
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        {loading && (
+          <div className="py-6 text-center text-slate-400">
+            <Loader2 size={16} className="inline animate-spin mr-2" /> Loading…
+          </div>
+        )}
       </div>
 
       <div className="mt-4 bg-red-50 rounded-xl p-4 flex items-center justify-between">
         <p className="text-sm font-bold text-slate-900">Total Expenses</p>
-        <span className="text-xl font-extrabold text-red-600 tabular-nums">₱{totalExpenses.toFixed(2)}</span>
+        <span className="text-xl font-extrabold text-red-600 tabular-nums">{money(totalExpenses)}</span>
       </div>
 
       {!hasRealExpenses && (
@@ -380,7 +371,7 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
             <button
               onClick={handleMarkNoExpenses}
               disabled={submitting}
-              className="flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-lg bg-teal-700 text-white hover:bg-teal-800 disabled:opacity-60"
+              className="flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-lg bg-[#8f1d1d] text-white hover:bg-[#7a1414] disabled:opacity-60"
             >
               {submitting && <Loader2 size={14} className="animate-spin" />}
               Yes, no expenses
@@ -391,17 +382,17 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
 
       <Modal open={expenseModalOpen} onClose={closeExpenseModal} title={editingTarget ? "Edit Expense" : "Add Expense"}>
         <div className="py-1">
-          <label className="text-xs font-semibold text-teal-600">Description</label>
+          <label className="text-xs font-semibold text-[#8f1d1d]">Item Name</label>
           <input
             value={modalDescription}
             onChange={(e) => setModalDescription(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && confirmExpenseModal()}
             placeholder="e.g. Oil"
             autoFocus
-            className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+            className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#f2c2be]"
           />
 
-          <label className="text-xs font-semibold text-teal-600 mt-3 block">Amount</label>
+          <label className="text-xs font-semibold text-[#8f1d1d] mt-3 block">Amount</label>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-slate-400">₱</span>
             <input
@@ -413,7 +404,7 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
               onKeyDown={(e) => e.key === "Enter" && confirmExpenseModal()}
               onWheel={(e) => e.target.blur()}
               placeholder="0.00"
-              className="no-spinner w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+              className="no-spinner w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#f2c2be]"
             />
           </div>
 
@@ -432,7 +423,7 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
             </button>
             <button
               onClick={confirmExpenseModal}
-              className="px-5 py-2 text-sm font-semibold rounded-lg bg-teal-700 text-white hover:bg-teal-800"
+              className="px-5 py-2 text-sm font-semibold rounded-lg bg-[#8f1d1d] text-white hover:bg-[#7a1414]"
             >
               {editingTarget ? "Save Changes" : "Add Expense"}
             </button>

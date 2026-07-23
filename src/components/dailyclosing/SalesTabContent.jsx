@@ -173,7 +173,8 @@ const SalesTabContent = forwardRef(function SalesTabContent(
 
   useImperativeHandle(ref, () => ({ submit: doSubmit }));
 
-  const money = (n) => `₱${Number(n || 0).toFixed(2)}`;
+  const money = (n) =>
+    `₱${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const Stepper = ({ value, onChange }) => (
     <div className="flex items-center gap-1.5">
@@ -190,7 +191,7 @@ const SalesTabContent = forwardRef(function SalesTabContent(
         value={value}
         onChange={(e) => onChange(Number(e.target.value) || 0)}
         onWheel={(e) => e.target.blur()}
-        className="no-spinner w-12 text-center font-bold text-teal-800 bg-teal-50 border-2 border-teal-200 rounded-md px-1 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300"
+        className="no-spinner w-12 text-center font-bold text-[#a3672a] bg-[#f7e9d8] border-2 border-[#f0dcc0] rounded-md px-1 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#e9d4ae]"
       />
       <button
         type="button"
@@ -205,8 +206,8 @@ const SalesTabContent = forwardRef(function SalesTabContent(
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-          <ShoppingCart size={16} className="text-emerald-700" />
+        <div className="w-9 h-9 rounded-lg bg-[#f7e9d8] flex items-center justify-center shrink-0">
+          <ShoppingCart size={16} className="text-[#a3672a]" />
         </div>
         <div>
           <p className="text-sm font-bold text-slate-900 leading-tight">Sales Entry</p>
@@ -236,7 +237,7 @@ const SalesTabContent = forwardRef(function SalesTabContent(
         ) : (
           <table className="w-full text-sm min-w-[560px]">
             <thead>
-              <tr className="bg-teal-50 text-teal-700 text-xs uppercase tracking-wide">
+              <tr className="bg-[#f7e9d8] text-[#a3672a] text-xs uppercase tracking-wide">
                 <th className="text-left font-semibold py-3 px-3">Item</th>
                 <th className="text-left font-semibold py-3 px-3">Price</th>
                 <th className="text-center font-semibold py-3 px-3">Qty</th>
@@ -247,7 +248,7 @@ const SalesTabContent = forwardRef(function SalesTabContent(
               {prices.map((size, i) => (
                 <tr
                   key={size.key}
-                  className={`${i % 2 === 0 ? "bg-slate-50" : "bg-white"} border-b border-slate-100 last:border-0 hover:bg-teal-50/60 transition-colors`}
+                  className={`${i % 2 === 0 ? "bg-slate-50" : "bg-white"} border-b border-slate-100 last:border-0 hover:bg-[#fff8f6] transition-colors`}
                 >
                   <td className="py-3 px-3">
                     <p className="font-medium text-slate-800">{size.label}</p>
@@ -279,7 +280,7 @@ const SalesTabContent = forwardRef(function SalesTabContent(
                       onChange={(e) => setAddOnsAmount(e.target.value)}
                       onWheel={(e) => e.target.blur()}
                       placeholder="0.00"
-                      className="no-spinner w-24 text-right border border-slate-200 rounded-md px-2 py-1.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-200"
+                      className="no-spinner w-24 text-right border border-slate-200 rounded-md px-2 py-1.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#f2c2be]"
                     />
                   </div>
                 </td>
@@ -304,7 +305,7 @@ const SalesTabContent = forwardRef(function SalesTabContent(
             <button
               onClick={handleConfirmNoSales}
               disabled={submitting}
-              className="flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-lg bg-teal-700 text-white hover:bg-teal-800 disabled:opacity-60"
+              className="flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-lg bg-[#8f1d1d] text-white hover:bg-[#7a1414] disabled:opacity-60"
             >
               {submitting && <Loader2 size={14} className="animate-spin" />}
               Yes, no sales

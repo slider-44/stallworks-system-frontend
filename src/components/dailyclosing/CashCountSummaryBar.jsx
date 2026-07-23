@@ -34,7 +34,7 @@ export default function CashCountSummaryBar({ expectedCash, actualCash, gcash, p
       <Metric
         label="Expected Cash"
         value={expectedCash}
-        valueColor="text-teal-700"
+        valueColor="text-[#8f1d1d]"
         sub={
           <span className="flex items-center gap-1">
             From Sales &amp; Expenses <Info size={11} />
