@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useState } from "react";
 import { AttendanceAPI } from "../lib/api";
 
 const AttendanceContext = createContext(null);
@@ -11,6 +11,22 @@ export function AttendanceProvider({ children }) {
   // clocked in yet. Drives the Clock In/Out UI and the app-wide gate.
   const [today, setToday] = useState(null);
   const [todayLoading, setTodayLoading] = useState(true);
+
+  const [openToday, setOpenToday] = useState([]);
+  const [openTodayLoading, setOpenTodayLoading] = useState(false);
+
+  const loadOpenToday = useCallback(async () => {
+  setOpenTodayLoading(true);
+  try {
+    const res = await AttendanceAPI.openToday();
+    setOpenToday(res || []);
+  } catch (err) {
+    console.warn("GET /v1/attendance/open failed:", err.message);
+    setOpenToday([]);
+  } finally {
+    setOpenTodayLoading(false);
+  }
+}, []);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -25,9 +41,9 @@ export function AttendanceProvider({ children }) {
     }
   }, []);
 
-  useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+  // NOT fetched on mount — same reasoning as AccountManagementContext:
+  // core-service now requires auth, and this provider mounts before
+  // login. AuthContext.login() calls `refresh` once a token exists.
 
   const loadToday = useCallback(async (employeeId) => {
     if (!employeeId) {

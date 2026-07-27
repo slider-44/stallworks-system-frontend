@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
 import { useAccountManagement } from "./AccountManagementContext";
+import { useContainerPrices } from "./ContainerPriceContext";
+import { useAttendance } from "./AttendanceContext";
 import { AuthAPI, setAuthToken } from "../lib/api";
 
 const AuthContext = createContext(null);
@@ -30,7 +32,9 @@ function decodeJwtPayload(token) {
 // whoever used the terminal last. Session (token + claims) lives in memory
 // only, and is lost on refresh by design.
 export function AuthProvider({ children }) {
-  const { employees } = useAccountManagement();
+  const { employees, refresh: refreshAccounts } = useAccountManagement();
+  const { refresh: refreshPrices } = useContainerPrices();
+  const { refresh: refreshAttendance } = useAttendance();
 
   const [session, setSession] = useState(null); // { token, userName, employeeId, role, exp }
 
@@ -66,6 +70,14 @@ export function AuthProvider({ children }) {
       role: claims.role,
       exp: claims.exp,
     });
+
+    // Only now do we actually have a token to attach — these providers no
+    // longer fetch on their own mount (core-service requires auth on
+    // every request, and they mount before login happens). Fire-and-forget
+    // is fine here: each one manages its own loading/error state.
+    refreshAccounts();
+    refreshPrices();
+    refreshAttendance();
   };
 
   const logout = () => {

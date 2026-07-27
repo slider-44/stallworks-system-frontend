@@ -30,8 +30,8 @@ export function CashSummaryProvider({ children }) {
     return saved;
   }, []);
 
-  const closeShift = useCallback(async (date, branchId, actorEmployeeId) => {
-    const updated = await CashSummaryAPI.close(date, branchId, actorEmployeeId);
+  const closeShift = useCallback(async (date, branchId, actorEmployeeId, reconciliation) => {
+    const updated = await CashSummaryAPI.close(date, branchId, actorEmployeeId, reconciliation);
     setCurrent(updated);
     return updated;
   }, []);

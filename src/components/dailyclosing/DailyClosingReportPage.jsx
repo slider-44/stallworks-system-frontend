@@ -33,9 +33,10 @@ export default function DailyClosingReportPage() {
   const { employeeId: loggedInEmployeeId, branchIds: myBranchIds, isAdmin } = useAuth();
   const { today: attendanceToday } = useAttendance();
   const { salesReports, current: currentSalesReport, loadCurrent: loadSalesCurrent } = useSales();
-  const { expenses, load: loadExpenses } = useExpenses();
+  const { load: loadExpenses } = useExpenses();
   const { current: cashSummary, load: loadCashSummary, closeShift, reopenShift } = useCashSummary();
   const isShiftClosed = cashSummary?.closed || false;
+  
 
   const [date, setDate] = useState(todayISO());
   const [branchId, setBranchId] = useState("");
@@ -52,6 +53,8 @@ export default function DailyClosingReportPage() {
   const [pettyCashNextday, setPettyCashNextday] = useState("");
   const [actualCash, setActualCash] = useState(0);
   const [liveSalesTotal, setLiveSalesTotal] = useState(0);
+  const [liveExpensesTotal, setLiveExpensesTotal] = useState(0);
+
 
   const salesTabRef = useRef(null);
   const expensesTabRef = useRef(null);
@@ -140,12 +143,11 @@ export default function DailyClosingReportPage() {
 
   const totalSales = liveSalesTotal > 0 ? liveSalesTotal : persistedSalesTotal;
 
-  // No longer needs to filter — `expenses` is already scoped to this
-  // date/branch by the server (see loadExpenses above).
-  const totalExpenses = useMemo(
-    () => expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0),
-    [expenses]
-  );
+  // Fed live by ExpensesTab's onLiveTotalChange — it already accounts for
+  // saved expenses (from context) plus any unsaved drafts/pending edits
+  // sitting in ExpensesTab's own local state, so no separate calc is
+  // needed here (see ExpensesTab.jsx).
+  const totalExpenses = liveExpensesTotal;
 
   const employeeName = useMemo(() => {
     const emp = employees.find((e) => String(e.id) === String(employeeId));
@@ -339,6 +341,7 @@ export default function DailyClosingReportPage() {
             ref={expensesTabRef}
             date={date}
             branchId={branchId}
+            onLiveTotalChange={setLiveExpensesTotal}
             onSaved={() => setExpensesSaved(true)}
           />
         </div>
@@ -458,7 +461,10 @@ export default function DailyClosingReportPage() {
           pettyCashNextday={pettyCashNextday}
           onBack={() => setActiveView("cashcount")}
           isShiftClosed={isShiftClosed}
-          onCloseShift={() => closeShift(date, branchId, Number(loggedInEmployeeId))}
+          closedClosingNote={cashSummary?.closingNote}
+          onCloseShift={(reconciliation) =>
+            closeShift(date, branchId, Number(loggedInEmployeeId), reconciliation)
+          }
         />
       )}
 

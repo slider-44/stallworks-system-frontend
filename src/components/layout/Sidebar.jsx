@@ -49,6 +49,7 @@ function buildNavSections(isAdmin) {
       children: [
         { label: "Container Prices", to: "/admin/container-prices" },
         { label: "Daily Records", to: "/admin/daily-records" },
+        { label: "Attendance", to: "/admin/attendance" },
       ],
     });
   }

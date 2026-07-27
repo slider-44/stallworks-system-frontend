@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useState } from "react";
 import { EmployeeAPI, AccountAPI, BranchAPI } from "../lib/api";
 
 // TODO: replace with your real Role enum values from the backend.
@@ -45,9 +45,10 @@ export function AccountManagementProvider({ children }) {
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+  // NOT fetched on mount — core-service now requires authentication on
+  // every request, and this provider mounts before login happens (there's
+  // no token yet at that point). AuthContext.login() calls `refresh`
+  // (below) once a token actually exists instead. See AuthContext.jsx.
 
   // NOTE: these always hit the real backend now. If the request fails
   // (CORS, network, validation, etc.) the error propagates to the form

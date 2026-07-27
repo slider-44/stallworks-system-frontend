@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useMemo, useState } from "react";
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { Loader2, Plus, Trash2, Pencil, ReceiptText } from "lucide-react";
 import { useExpenses } from "../../context/ExpenseContext";
 import Modal from "../ui/Modal";
@@ -14,7 +14,7 @@ let draftSeq = 0;
 // recorded" relies on it), but it's no longer shown or asked for in the
 // UI — a plain amount log is all crew need day-to-day. It defaults to
 // "Expense" so existing rows without one still render sensibly.
-const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved }, ref) {
+const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved, onLiveTotalChange }, ref) {
   const { expenses, loading, addExpenses, updateExpense, removeExpense } = useExpenses();
 
   const [drafts, setDrafts] = useState([]);
@@ -55,6 +55,15 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
   const totalExpenses =
     savedExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0) +
     drafts.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+
+  // Lets the parent page's footer total stay in sync in real time — it
+  // has no visibility into `drafts`/`pendingEdits` otherwise, since those
+  // are local to this component (same pattern SalesTabContent already
+  // uses for its own live total).
+  useEffect(() => {
+    onLiveTotalChange?.(totalExpenses);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalExpenses]);
 
   const alreadyMarkedNoExpense = savedExpenses.some(
     (e) => Number(e.amount) === 0 && e.description === "No expenses recorded"

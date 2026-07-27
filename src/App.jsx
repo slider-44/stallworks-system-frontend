@@ -18,6 +18,7 @@ import { ContainerPriceProvider } from "./context/ContainerPriceContext";
 import { CashSummaryProvider } from "./context/CashSummaryContext";
 import { AuthProvider } from "./context/AuthContext";
 import { AttendanceProvider } from "./context/AttendanceContext";
+import AdminAttendancePage from "./components/admin/AdminAttendancePage";
 
 // Sales, Expenses, and Cash Count are consolidated into one page again —
 // Daily Closing Report — with tabs + a sticky live summary sidebar.
@@ -28,17 +29,24 @@ import { AttendanceProvider } from "./context/AttendanceContext";
 // switcher) — it needs to sit INSIDE AccountManagementProvider, since it
 // looks up the logged-in employee's role/branches from the real Employee
 // list, not a manual dropdown.
+//
+// AccountManagementProvider, ContainerPriceProvider, and AttendanceProvider
+// all sit OUTSIDE (above) AuthProvider now, not just AccountManagement —
+// none of them auto-fetch on mount anymore (core-service requires auth,
+// and they'd mount before login happens). Instead AuthContext.login()
+// calls each one's `refresh()` once a real token exists, which means
+// AuthProvider needs to be able to reach all three as ancestors.
 
 export default function App() {
   return (
     <BrowserRouter>
       <AccountManagementProvider>
-        <AuthProvider>
-          <ContainerPriceProvider>
-            <SalesProvider>
-              <ExpenseProvider>
-                <CashSummaryProvider>
-                  <AttendanceProvider>
+        <ContainerPriceProvider>
+          <AttendanceProvider>
+            <AuthProvider>
+              <SalesProvider>
+                <ExpenseProvider>
+                  <CashSummaryProvider>
                     <Routes>
                       <Route path="/login" element={<LoginPage />} />
                       <Route element={<RequireAuth />}>
@@ -54,16 +62,17 @@ export default function App() {
                             <Route path="daily-closing-report" element={<DailyClosingReportPage />} />
                             <Route path="admin/container-prices" element={<ContainerPricesPage />} />
                             <Route path="admin/daily-records" element={<DailyRecordsAdminPage />} />
+                            <Route path="admin/attendance" element={<AdminAttendancePage />} />
                           </Route>
                         </Route>
                       </Route>
                     </Routes>
-                  </AttendanceProvider>
-                </CashSummaryProvider>
-              </ExpenseProvider>
-            </SalesProvider>
-          </ContainerPriceProvider>
-        </AuthProvider>
+                  </CashSummaryProvider>
+                </ExpenseProvider>
+              </SalesProvider>
+            </AuthProvider>
+          </AttendanceProvider>
+        </ContainerPriceProvider>
       </AccountManagementProvider>
     </BrowserRouter>
   );

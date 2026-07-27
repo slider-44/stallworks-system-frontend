@@ -34,6 +34,17 @@ async function requestWithBase(base, path, options = {}) {
     ...options,
   });
 
+   if (res.status === 401) {
+    // Token missing/expired/invalid. There's nothing the calling code can
+    // do to recover mid-request, so don't let it try — clear the stale
+    // token and force back to a fresh login via a hard redirect (this
+    // module has no access to AuthContext/router, and a full reload
+    // conveniently wipes all in-memory session state too).
+    authToken = null;
+    window.location.href = "/login";
+    return new Promise(() => {}); // never resolves — page is navigating away
+  }
+
   if (!res.ok) {
     let message = `Request failed (${res.status})`;
     try {
@@ -179,6 +190,8 @@ export const AttendanceAPI = {
       if (err.message.includes("404") || err.message.toLowerCase().includes("not found")) return null;
       throw err;
     }),
+
+  openToday: () => request("/attendance/open"),
   clockIn: (employeeId, branchId) =>
     request("/attendance/clock-in", {
       method: "POST",
@@ -209,10 +222,21 @@ export const CashSummaryAPI = {
       method: "POST",
       body: JSON.stringify(cashSummaryRequest),
     }),
-  close: (date, branchId, actorEmployeeId) =>
+  // NOTE: backend's CloseShiftRequest field is `employeeId`, not
+  // `actorEmployeeId` — this used to send the wrong key, so the backend's
+  // @NotNull employeeId always deserialized to null and every close
+  // attempt would have failed validation.
+  close: (date, branchId, actorEmployeeId, reconciliation = {}) =>
     request("/cash-summaries/close", {
       method: "POST",
-      body: JSON.stringify({ date, branchId, actorEmployeeId }),
+      body: JSON.stringify({
+        date,
+        branchId,
+        employeeId: actorEmployeeId,
+        status: reconciliation.status,
+        difference: reconciliation.difference,
+        note: reconciliation.note || null,
+      }),
     }),
   reopen: (date, branchId, actorEmployeeId) =>
     request("/cash-summaries/reopen", {

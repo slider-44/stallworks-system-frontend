@@ -55,6 +55,7 @@ export default function ReconciliationPage({
   pettyCashNextday,
   onBack,
   isShiftClosed,
+  closedClosingNote,
   onCloseShift,
 }) {
   const expectedCash = totalSales - totalExpenses;
@@ -81,12 +82,17 @@ export default function ReconciliationPage({
 
   const [closing, setClosing] = useState(false);
   const [closeError, setCloseError] = useState(null);
+  const [note, setNote] = useState("");
+
+  const noteRequired = !isBalanced;
+  const canClose = !noteRequired || note.trim().length > 0;
 
   const handleClose = async () => {
+    if (!canClose) return;
     setClosing(true);
     setCloseError(null);
     try {
-      await onCloseShift?.();
+      await onCloseShift?.({ status, difference, note: note.trim() || null });
     } catch (err) {
       setCloseError(err.message);
     } finally {
@@ -287,6 +293,34 @@ export default function ReconciliationPage({
         </div>
       </div>
 
+      {/* Discrepancy note — required before closing whenever the shift
+          isn't balanced, so there's a record of why it was short/over. */}
+      {!isShiftClosed && noteRequired && (
+        <div className="border border-red-100 bg-red-50 rounded-2xl p-4 mb-5">
+          <label className="flex items-center gap-2 text-sm font-bold text-red-700 mb-2">
+            <StatusIcon size={15} />
+            Explain the {statusConfig.label.toLowerCase()} amount ({money(Math.abs(difference))})
+          </label>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g. Gave change short by mistake, comped a customer's order, miscounted drawer…"
+            rows={2}
+            className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200 bg-white"
+          />
+          <p className="text-xs text-red-600 mt-1.5">
+            Required to close this shift — this gets saved with the record for admin review.
+          </p>
+        </div>
+      )}
+
+      {isShiftClosed && closedClosingNote && (
+        <div className="border border-slate-100 bg-slate-50 rounded-2xl p-4 mb-5">
+          <p className="text-sm font-bold text-slate-700 mb-1">Discrepancy note (saved at closing)</p>
+          <p className="text-sm text-slate-600">{closedClosingNote}</p>
+        </div>
+      )}
+
       {/* Action row */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
         <button
@@ -303,13 +337,16 @@ export default function ReconciliationPage({
         ) : (
           <button
             onClick={handleClose}
-            disabled={closing}
+            disabled={closing || !canClose}
+            title={!canClose ? "Explain the discrepancy above before closing" : ""}
             className="flex items-center gap-3 bg-[#8f1d1d] hover:bg-[#7a1414] text-white px-5 py-3 rounded-lg shadow-sm disabled:opacity-60"
           >
             <CheckCircle2 size={18} />
             <span className="text-left">
               <span className="block text-sm font-bold leading-tight">{closing ? "Closing…" : "Confirm & End Shift"}</span>
-              <span className="block text-xs font-normal text-white/80 leading-tight">Confirm the reconciliation and close the shift.</span>
+              <span className="block text-xs font-normal text-white/80 leading-tight">
+                {canClose ? "Confirm the reconciliation and close the shift." : "Add a note above first."}
+              </span>
             </span>
           </button>
         )}

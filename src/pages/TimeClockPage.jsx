@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Clock, LogIn, LogOut, Loader2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useAttendance } from "../context/AttendanceContext";
+import { useAccountManagement } from "../context/AccountManagementContext";
 
 const formatTime12 = (t) => {
   if (!t) return "--:--";
@@ -20,6 +21,7 @@ const formatTime12 = (t) => {
 export default function TimeClockPage() {
   const { employeeId, currentEmployeeName, branchIds } = useAuth();
   const { today, todayLoading, loadToday, clockIn, clockOut } = useAttendance();
+  const { loading: employeesLoading } = useAccountManagement();
   const navigate = useNavigate();
 
   const [busy, setBusy] = useState(false);
@@ -31,6 +33,12 @@ export default function TimeClockPage() {
   }, [employeeId]);
 
   const handleClockIn = async () => {
+
+     if (!branchIds[0]) {
+      setError("No branch assigned to your account — contact an admin.");
+      return;
+    }
+
     setBusy(true);
     setError(null);
     try {
@@ -55,7 +63,7 @@ export default function TimeClockPage() {
     }
   };
 
-  if (todayLoading) {
+   if (todayLoading || employeesLoading) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
         <Loader2 size={24} className="animate-spin text-teal-600" />
