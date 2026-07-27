@@ -8,7 +8,7 @@ export default function DashboardLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
-    <div className="min-h-screen w-full bg-slate-100 flex text-slate-800">
+    <div className="min-h-screen w-full bg-[#f6ede2] flex text-slate-800">
       <Sidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar onMenuClick={() => setMobileNavOpen(true)} />

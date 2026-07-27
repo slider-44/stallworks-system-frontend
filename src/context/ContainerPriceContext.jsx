@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useState } from "react";
 import { ContainerPriceAPI } from "../lib/api";
 
 // Fallback so the Sales Report form and admin page aren't empty before the
@@ -45,9 +45,9 @@ export function ContainerPriceProvider({ children }) {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // NOT fetched on mount — same reasoning as AccountManagementContext:
+  // core-service now requires auth, and this provider mounts before
+  // login. AuthContext.login() calls `refresh` once a token exists.
 
   const updatePrice = useCallback(async (containerSize, price) => {
     const updated = await ContainerPriceAPI.updatePrice(containerSize, price);

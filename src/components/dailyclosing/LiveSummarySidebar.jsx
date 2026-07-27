@@ -23,16 +23,16 @@ export default function LiveSummarySidebar({
   else if (difference < -0.004) status = "Final Short";
 
   const barColor =
-    status === "Final Balance" ? "bg-teal-900" : status === "Final Over" ? "bg-blue-900" : "bg-red-900";
+    status === "Final Balance" ? "bg-[#3d0b0b]" : status === "Final Over" ? "bg-blue-900" : "bg-red-900";
 
   const money = (n) =>
     `₱${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const DetailRow = ({ label, value, tone, bold, highlight }) => {
     const labelClass =
-      tone === "green" ? "text-emerald-600" : tone === "red" ? "text-red-500" : tone === "indigo" ? "text-indigo-700" : "text-slate-500";
+      tone === "green" ? "text-emerald-600" : tone === "red" ? "text-red-500" : tone === "indigo" ? "text-amber-700" : "text-slate-500";
     const valueClass =
-      tone === "green" ? "text-emerald-600" : tone === "red" ? "text-red-500" : tone === "indigo" ? "text-indigo-700" : "text-slate-900";
+      tone === "green" ? "text-emerald-600" : tone === "red" ? "text-red-500" : tone === "indigo" ? "text-amber-700" : "text-slate-900";
     return (
       <div
         className={`flex items-center justify-between py-2 px-2 -mx-2 rounded-lg ${
@@ -123,13 +123,13 @@ export default function LiveSummarySidebar({
       </div>
 
       {/* Cash */}
-      <div className="mt-3 bg-indigo-50 rounded-2xl p-4">
+      <div className="mt-3 bg-amber-50 rounded-2xl p-4">
         <SectionHeader
           Icon={Wallet}
-          iconBg="bg-indigo-100"
-          iconColor="text-indigo-600"
+          iconBg="bg-amber-100"
+          iconColor="text-amber-700"
           tag="Cash"
-          tagColor="text-indigo-600"
+          tagColor="text-amber-700"
           title="Actual Cash"
           value={actualCash}
           valueColor="text-slate-900"

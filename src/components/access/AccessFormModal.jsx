@@ -3,7 +3,14 @@ import Modal from "../ui/Modal";
 import { useAccountManagement } from "../../context/AccountManagementContext";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
-const EMPTY_FORM = { employeeId: "", userName: "", password: "" };
+const EMPTY_FORM = { employeeId: "", userName: "", password: "", role: "" };
+
+// Account roles are auth-service's Role enum (ADMIN/STAFF only) — NOT the
+// same as an Employee's role in core-service, which also allows
+// MANAGER/CASHIER (see ROLE_OPTIONS in AccountManagementContext). Picking
+// one of those two here would fail the same way this bug did, just with
+// an invalid-enum-value error instead of a missing-field one.
+const ACCOUNT_ROLE_OPTIONS = ["ADMIN", "STAFF"];
 
 function validate(form) {
   const errors = {};
@@ -11,6 +18,7 @@ function validate(form) {
   if (!form.userName.trim()) errors.userName = "Username is required";
   if (!form.password) errors.password = "Password is required";
   else if (form.password.length < 8) errors.password = "Must be at least 8 characters";
+  if (!form.role) errors.role = "Role is required";
   return errors;
 }
 
@@ -30,6 +38,7 @@ export default function AccessFormModal({ open, onClose, presetEmployee, onCreat
         employeeId: presetEmployee?.id ?? "",
         userName: "",
         password: "",
+        role: "",
       });
       setErrors({});
       setApiError(null);
@@ -55,6 +64,7 @@ export default function AccessFormModal({ open, onClose, presetEmployee, onCreat
         employeeId: Number(form.employeeId),
         userName: form.userName.trim(),
         password: form.password,
+        role: form.role,
       };
       const created = await addAccount(accountRequest);
       close();
@@ -120,6 +130,23 @@ export default function AccessFormModal({ open, onClose, presetEmployee, onCreat
           {errors.employeeId && (
             <p className="text-xs text-red-500 mt-1">{errors.employeeId}</p>
           )}
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-slate-500">Role</label>
+          <select
+            value={form.role}
+            onChange={(e) => setForm({ ...form, role: e.target.value })}
+            className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          >
+            <option value="">Select a role</option>
+            {ACCOUNT_ROLE_OPTIONS.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+          {errors.role && <p className="text-xs text-red-500 mt-1">{errors.role}</p>}
         </div>
 
         <div>
