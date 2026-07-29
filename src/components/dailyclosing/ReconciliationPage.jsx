@@ -52,32 +52,45 @@ export default function ReconciliationPage({
   totalExpenses,
   gcash,
   actualCash,
+  pettyCashYesterday,
   pettyCashNextday,
   onBack,
   isShiftClosed,
   closedClosingNote,
   onCloseShift,
 }) {
-  const expectedCash = totalSales - totalExpenses;
   const cashDrawerCount = Number(actualCash || 0);
   const gcashCollected = Number(gcash || 0);
   const nextShiftFloat = Number(pettyCashNextday || 0);
-
   const actualReceived = cashDrawerCount + gcashCollected;
-  const cashToHandOver = cashDrawerCount - nextShiftFloat;
-  const difference = expectedCash - actualReceived;
+  const cashToHandOver = cashDrawerCount;
 
-  let status = "BALANCED";
-  if (difference < -0.004) status = "OVER";
-  else if (difference > 0.004) status = "SHORT";
-
-  const statusConfig = {
+  const STATUS_CONFIG = {
     BALANCED: { bg: "bg-emerald-50", text: "text-emerald-700", icon: CheckCircle2, label: "Balanced" },
     OVER: { bg: "bg-amber-50", text: "text-amber-700", icon: ArrowUpCircle, label: "Over" },
     SHORT: { bg: "bg-red-50", text: "text-red-700", icon: ArrowDownCircle, label: "Short" },
-  }[status];
-  const StatusIcon = statusConfig.icon;
+  };
+  const statusFromDifference = (d) => (d < -0.004 ? "OVER" : d > 0.004 ? "SHORT" : "BALANCED");
 
+  // Step 1 — raw comparison, deliberately NOT float-adjusted. A drawer
+  // that's still holding the next-shift float will legitimately show as
+  // "Over" here — that's expected and informational, not an error.
+  const rawExpectedCash = totalSales - totalExpenses;
+  const rawDifference = rawExpectedCash - actualReceived;
+  const rawStatus = statusFromDifference(rawDifference);
+  const rawStatusConfig = STATUS_CONFIG[rawStatus];
+  const rawIsBalanced = rawStatus === "BALANCED";
+
+  // Reconciliation Summary + closing logic — float-adjusted, since the
+  // float sitting in the drawer isn't a real discrepancy. This is the
+  // number that actually decides whether a note is required and what
+  // gets saved when the shift is closed.
+  const expectedCash = totalSales - totalExpenses + nextShiftFloat;
+  const difference = expectedCash - actualReceived;
+  const status = statusFromDifference(difference);
+  const statusConfig = STATUS_CONFIG[status];
+  const StatusIcon = statusConfig.icon;
+  const RawStatusIcon = rawStatusConfig.icon;
   const isBalanced = status === "BALANCED";
 
   const [closing, setClosing] = useState(false);
@@ -156,7 +169,7 @@ export default function ReconciliationPage({
           <div className="bg-emerald-50 rounded-xl p-4">
             <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Expected Cash</p>
             <p className="text-xs text-slate-500 mt-0.5">From Sales &amp; Expenses</p>
-            <p className="text-2xl font-extrabold text-emerald-700 mt-2">{money(expectedCash)}</p>
+            <p className="text-2xl font-extrabold text-emerald-700 mt-2">{money(rawExpectedCash)}</p>
             <button className="flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:underline mt-2">
               View Sales &amp; Expenses Summary <ChevronRight size={12} />
             </button>
@@ -171,19 +184,19 @@ export default function ReconciliationPage({
           <div className="bg-emerald-50 rounded-xl p-4">
             <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Difference</p>
             <p className="text-xs text-slate-500 mt-0.5">Expected - Actual</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-2">{money(Math.abs(difference))}</p>
-            <span className={`inline-flex items-center gap-1 text-xs font-semibold rounded-full px-2.5 py-1 mt-2 ${statusConfig.bg} ${statusConfig.text}`}>
-              <StatusIcon size={11} /> {statusConfig.label}
+            <p className="text-2xl font-extrabold text-slate-900 mt-2">{money(Math.abs(rawDifference))}</p>
+            <span className={`inline-flex items-center gap-1 text-xs font-semibold rounded-full px-2.5 py-1 mt-2 ${rawStatusConfig.bg} ${rawStatusConfig.text}`}>
+              <RawStatusIcon size={11} /> {rawStatusConfig.label}
             </span>
           </div>
         </div>
 
-        <div className={`flex items-center gap-2.5 rounded-xl px-4 py-3 mt-4 ${statusConfig.bg}`}>
-          <StatusIcon size={16} className={`${statusConfig.text} shrink-0`} />
-          <p className={`text-sm ${statusConfig.text}`}>
-            {isBalanced
+        <div className={`flex items-center gap-2.5 rounded-xl px-4 py-3 mt-4 ${rawStatusConfig.bg}`}>
+          <RawStatusIcon size={16} className={`${rawStatusConfig.text} shrink-0`} />
+          <p className={`text-sm ${rawStatusConfig.text}`}>
+            {rawIsBalanced
               ? "Great! Your cash count matches the expected amount."
-              : "Your cash count doesn't match the expected amount — review before continuing."}
+              : "Your cash count doesn't match the expected amount exactly — this is expected if there's a starting float still in the drawer. See Reconciliation Summary below for the final balance."}
           </p>
         </div>
       </div>
@@ -192,7 +205,7 @@ export default function ReconciliationPage({
       <div className="border border-slate-100 rounded-2xl p-5 mb-5">
         <StepBadge n={2} />
         <h3 className="text-lg font-bold text-slate-900 mt-2">Calculate Cash to Hand Over</h3>
-        <p className="text-xs text-slate-400 mb-4">After keeping the starting float, this is the cash to turn in to the owner.</p>
+        <p className="text-xs text-slate-400 mb-4">This is the full counted cash to turn in to the owner.</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           <div className="lg:col-span-8">
@@ -214,9 +227,8 @@ export default function ReconciliationPage({
                 iconBg="bg-[#f7e9d8]"
                 iconColor="text-[#a3672a]"
                 label="Starting Float (Petty Cash)"
-                sub="To be kept for next shift"
+                sub="For next shift — recorded only, not deducted below"
                 value={nextShiftFloat}
-                negative
               />
               <BreakdownRow
                 icon={Smartphone}
@@ -234,7 +246,7 @@ export default function ReconciliationPage({
               </div>
               <div className="flex-1">
                 <p className="text-sm font-bold text-emerald-800">Cash to Hand Over</p>
-                <p className="text-xs text-emerald-600">Turn in to the owner after keeping the float.</p>
+                <p className="text-xs text-emerald-600">Full counted cash to turn in to the owner.</p>
               </div>
               <span className="text-xl font-extrabold text-emerald-700 shrink-0">{money(cashToHandOver)}</span>
             </div>

@@ -458,6 +458,7 @@ export default function DailyClosingReportPage() {
           totalExpenses={totalExpenses}
           gcash={gcash}
           actualCash={actualCash}
+          pettyCashYesterday={pettyCashYesterday}
           pettyCashNextday={pettyCashNextday}
           onBack={() => setActiveView("cashcount")}
           isShiftClosed={isShiftClosed}
