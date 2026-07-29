@@ -14,11 +14,36 @@
 const CORE_API_BASE = import.meta.env.VITE_CORE_API_BASE_URL || "/api/v1";
 const AUTH_API_BASE = import.meta.env.VITE_AUTH_API_BASE_URL || "/api/v1";
 
+// Bearer token from the current session (see AuthContext). Kept in memory
+// only, never persisted — set on login, cleared on logout. Attached to
+// every request below so calls are ready for when the backend starts
+// enforcing JWT auth on protected endpoints (auth-service doesn't yet;
+// SecurityConfig currently permits all requests).
+let authToken = null;
+export function setAuthToken(token) {
+  authToken = token;
+}
+
 async function requestWithBase(base, path, options = {}) {
   const res = await fetch(`${base}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...(options.headers || {}),
+    },
     ...options,
   });
+
+   if (res.status === 401) {
+    // Token missing/expired/invalid. There's nothing the calling code can
+    // do to recover mid-request, so don't let it try — clear the stale
+    // token and force back to a fresh login via a hard redirect (this
+    // module has no access to AuthContext/router, and a full reload
+    // conveniently wipes all in-memory session state too).
+    authToken = null;
+    window.location.href = "/login";
+    return new Promise(() => {}); // never resolves — page is navigating away
+  }
 
   if (!res.ok) {
     let message = `Request failed (${res.status})`;
@@ -64,6 +89,17 @@ export const AccountAPI = {
     authRequest("/accounts", {
       method: "POST",
       body: JSON.stringify(accountRequest),
+    }),
+};
+
+// ---- Auth (auth-service) -------------------------------------------------
+// Maps to LoginRequest: { userName, password }
+// Returns LoginResponse: { token, tokenType } (tokenType is always "Bearer").
+export const AuthAPI = {
+  login: (loginRequest) =>
+    authRequest("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(loginRequest),
     }),
 };
 
@@ -134,17 +170,37 @@ export const ExpenseAPI = {
   remove: (id) => request(`/expenses/${id}`, { method: "DELETE" }),
 };
 
-
-
 // ---- Attendance (core-services, payroll) --------------------------------
 // Maps to AttendanceRequest: { employeeId, branchId, date, timeIn, timeOut }
 // Independent from Sales Reports — feeds payroll, not sales.
 export const AttendanceAPI = {
-  list: () => request("/attendance"),
+  list: (params = {}) => {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== ""))
+    ).toString();
+    return request(`/attendance${qs ? `?${qs}` : ""}`);
+  },
   create: (attendanceRequest) =>
     request("/attendance", {
       method: "POST",
       body: JSON.stringify(attendanceRequest),
+    }),
+  today: (employeeId) =>
+    request(`/attendance/today?employeeId=${employeeId}`).catch((err) => {
+      if (err.message.includes("404") || err.message.toLowerCase().includes("not found")) return null;
+      throw err;
+    }),
+
+  openToday: () => request("/attendance/open"),
+  clockIn: (employeeId, branchId) =>
+    request("/attendance/clock-in", {
+      method: "POST",
+      body: JSON.stringify({ employeeId, branchId }),
+    }),
+  clockOut: (employeeId) =>
+    request("/attendance/clock-out", {
+      method: "POST",
+      body: JSON.stringify({ employeeId }),
     }),
 };
 
@@ -166,6 +222,27 @@ export const CashSummaryAPI = {
       method: "POST",
       body: JSON.stringify(cashSummaryRequest),
     }),
+  // NOTE: backend's CloseShiftRequest field is `employeeId`, not
+  // `actorEmployeeId` — this used to send the wrong key, so the backend's
+  // @NotNull employeeId always deserialized to null and every close
+  // attempt would have failed validation.
+  close: (date, branchId, actorEmployeeId, reconciliation = {}) =>
+    request("/cash-summaries/close", {
+      method: "POST",
+      body: JSON.stringify({
+        date,
+        branchId,
+        employeeId: actorEmployeeId,
+        status: reconciliation.status,
+        difference: reconciliation.difference,
+        note: reconciliation.note || null,
+      }),
+    }),
+  reopen: (date, branchId, actorEmployeeId) =>
+    request("/cash-summaries/reopen", {
+      method: "POST",
+      body: JSON.stringify({ date, branchId, actorEmployeeId }),
+    }),
 };
 
 // ---- Sales Reports (core-services) --------------------------------------
@@ -185,4 +262,5 @@ export const SalesReportAPI = {
       method: "POST",
       body: JSON.stringify(salesReportRequest),
     }),
+  remove: (id) => request(`/sales-reports/${id}`, { method: "DELETE" }),
 };

@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { Loader2, Pencil, Check, X, ShieldAlert, MoreHorizontal } from "lucide-react";
 import { useContainerPrices } from "../../context/ContainerPriceContext";
-import { useCurrentUser } from "../../context/CurrentUserContext";
+import { useAuth } from "../../context/AuthContext";
 
 export default function ContainerPricesPage() {
-  const { isAdmin } = useCurrentUser();
+  const { isAdmin } = useAuth();
   const { allPrices, loading, usingFallback, updatePrice } = useContainerPrices();
   const [editingKey, setEditingKey] = useState(null);
   const [draftPrice, setDraftPrice] = useState("");

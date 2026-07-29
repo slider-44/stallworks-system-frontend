@@ -1,68 +1,185 @@
-import React, { forwardRef, useImperativeHandle, useMemo, useState } from "react";
-import { Loader2, Plus, Trash2, ReceiptText } from "lucide-react";
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { Loader2, Plus, Trash2, Pencil, ReceiptText } from "lucide-react";
 import { useExpenses } from "../../context/ExpenseContext";
+import Modal from "../ui/Modal";
 
 let draftSeq = 0;
 
-// Matches Sales Entry's pattern: rows are built up in local state only —
-// nothing touches the backend until "Save Expenses" is clicked. This is
-// what lets typing/adding rows keep working even if the backend is down;
-// only the actual Save action needs it.
-const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved }, ref) {
-  const { expenses, loading, addExpenses } = useExpenses();
+// New rows AND edits to existing rows both go through a popup, and both
+// are staged locally — nothing touches the backend until "Save" is
+// clicked. Only Delete stays immediate, since it's a decisive standalone
+// action, not something meant to be batched with everything else.
+//
+// Description is still stored (backend requires it, and "No expenses
+// recorded" relies on it), but it's no longer shown or asked for in the
+// UI — a plain amount log is all crew need day-to-day. It defaults to
+// "Expense" so existing rows without one still render sensibly.
+const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved, onLiveTotalChange }, ref) {
+  const { expenses, loading, addExpenses, updateExpense, removeExpense } = useExpenses();
 
   const [drafts, setDrafts] = useState([]);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [rowBusyId, setRowBusyId] = useState(null);
 
+  // Staged edits to already-saved rows — { [expenseId]: { amount } } —
+  // not sent to the backend until Save.
+  const [pendingEdits, setPendingEdits] = useState({});
+
+  // Popup asking "confirm no expenses?" — shown instead of a blocking
+  // error whenever Save is clicked with nothing entered at all yet.
+  const [confirmNoExpensesOpen, setConfirmNoExpensesOpen] = useState(false);
+
+  // One shared popup for "Add Expense" and "Edit Expense" — editingTarget
+  // is null when adding a new one, or { type: 'saved' | 'draft', id }
+  // when editing an existing saved row or an unsaved draft row.
+  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
+  const [editingTarget, setEditingTarget] = useState(null);
+  const [modalDescription, setModalDescription] = useState("");
+  const [modalAmount, setModalAmount] = useState("");
+  const [modalError, setModalError] = useState(null);
+
+  const money = (n) =>
+    `₱${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  // What actually renders — saved rows with any staged (unsaved) edit
+  // applied on top, so the user sees their change immediately even
+  // though it hasn't hit the backend yet.
   const savedExpenses = useMemo(
-    () => expenses.filter((e) => e.date === date && String(e.branchId) === String(branchId)),
-    [expenses, date, branchId]
+    () => expenses.map((e) => (pendingEdits[e.id] ? { ...e, ...pendingEdits[e.id] } : e)),
+    [expenses, pendingEdits]
   );
 
   const totalExpenses =
     savedExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0) +
     drafts.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
 
+  // Lets the parent page's footer total stay in sync in real time — it
+  // has no visibility into `drafts`/`pendingEdits` otherwise, since those
+  // are local to this component (same pattern SalesTabContent already
+  // uses for its own live total).
+  useEffect(() => {
+    onLiveTotalChange?.(totalExpenses);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalExpenses]);
+
   const alreadyMarkedNoExpense = savedExpenses.some(
     (e) => Number(e.amount) === 0 && e.description === "No expenses recorded"
   );
+  // If real expenses exist alongside the old $0 marker (e.g. it was marked
+  // "no expenses" earlier, then someone added a real one later), the
+  // marker is stale — don't show contradictory "marked as no expenses"
+  // text next to actual expense rows.
+  const hasRealExpenses = savedExpenses.some((e) => Number(e.amount) > 0);
 
-  const addDraftRow = () => {
-    draftSeq += 1;
-    setDrafts((prev) => [...prev, { id: `draft-${draftSeq}`, description: "", amount: "" }]);
+  const openAddExpense = () => {
+    setEditingTarget(null);
+    setModalDescription("");
+    setModalAmount("");
+    setModalError(null);
+    setExpenseModalOpen(true);
   };
 
-  const updateDraft = (id, field, value) => {
-    setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, [field]: value } : d)));
+  const openEditExpense = (expense) => {
+    setEditingTarget({ type: "saved", id: expense.id });
+    setModalDescription(expense.description || "");
+    setModalAmount(String(expense.amount));
+    setModalError(null);
+    setExpenseModalOpen(true);
+  };
+
+  const openEditDraft = (draft) => {
+    setEditingTarget({ type: "draft", id: draft.id });
+    setModalDescription(draft.description || "");
+    setModalAmount(String(draft.amount));
+    setModalError(null);
+    setExpenseModalOpen(true);
+  };
+
+  const closeExpenseModal = () => setExpenseModalOpen(false);
+
+  const confirmExpenseModal = () => {
+    if (!modalDescription.trim()) {
+      setModalError("Enter an item name");
+      return;
+    }
+    if (!(Number(modalAmount) > 0)) {
+      setModalError("Enter an amount greater than 0");
+      return;
+    }
+
+    if (editingTarget?.type === "saved") {
+      // Editing an existing saved row — stage it, no network call yet.
+      setPendingEdits((prev) => ({
+        ...prev,
+        [editingTarget.id]: { description: modalDescription.trim(), amount: Number(modalAmount) },
+      }));
+    } else if (editingTarget?.type === "draft") {
+      // Editing an unsaved draft row — just update it in place.
+      setDrafts((prev) =>
+        prev.map((d) =>
+          d.id === editingTarget.id ? { ...d, description: modalDescription.trim(), amount: Number(modalAmount) } : d
+        )
+      );
+    } else {
+      // Adding a brand-new row — stage it as a new draft.
+      draftSeq += 1;
+      setDrafts((prev) => [
+        ...prev,
+        { id: `draft-${draftSeq}`, description: modalDescription.trim(), amount: Number(modalAmount) },
+      ]);
+    }
+    setExpenseModalOpen(false);
   };
 
   const removeDraft = (id) => {
     setDrafts((prev) => prev.filter((d) => d.id !== id));
   };
 
+  const deleteExisting = async (id) => {
+    setRowBusyId(id);
+    setApiError(null);
+    try {
+      await removeExpense(id);
+      // Drop any staged edit for a row that no longer exists.
+      setPendingEdits((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } catch (err) {
+      setApiError(err.message);
+    } finally {
+      setRowBusyId(null);
+    }
+  };
+
   const doSubmit = async () => {
+    // Guard against a second call landing while the first is still in
+    // flight — no unique constraint on Expenses, so a double-click
+    // wouldn't crash, it would just silently create a duplicate row.
+    if (submitting) return { ok: false };
+
     setSuccess(false);
     const errs = {};
     if (!date || !branchId) errs.header = "Set the date and branch above first";
-
-    const incomplete = drafts.some((d) => !d.description.trim() || !(Number(d.amount) > 0));
-    if (incomplete) errs.rows = "Every row needs a description and an amount greater than 0";
-
-    // Only require at least one entry if NOTHING has been recorded at all
-    // yet (no saved expenses, no drafts, no "no expenses" marker). If
-    // there's nothing new to add but something's already saved, this
-    // should succeed as a no-op rather than block — important since the
-    // footer's Save button calls this even when there's nothing pending.
-    const nothingRecordedYet = savedExpenses.length === 0 && drafts.length === 0 && !alreadyMarkedNoExpense;
-    if (nothingRecordedYet) errs.rows = "Add at least one expense, or confirm no expenses for this shift";
-
     setErrors(errs);
     if (Object.keys(errs).length) return { ok: false };
 
-    if (drafts.length === 0) {
+    const pendingEditIds = Object.keys(pendingEdits);
+
+    // Nothing entered at all yet — ask via a popup instead of just
+    // blocking with an error message.
+    const nothingRecordedYet =
+      expenses.length === 0 && drafts.length === 0 && pendingEditIds.length === 0 && !alreadyMarkedNoExpense;
+    if (nothingRecordedYet) {
+      setConfirmNoExpensesOpen(true);
+      return { ok: false };
+    }
+
+    if (drafts.length === 0 && pendingEditIds.length === 0) {
       // Nothing new to submit, but something's already saved — treat as
       // a successful no-op so gating logic (e.g. "Continue") isn't blocked.
       onSaved?.();
@@ -72,15 +189,31 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
     setSubmitting(true);
     setApiError(null);
     try {
-      // One request for the whole batch, not one request per row.
-      const expenseRequests = drafts.map((draft) => ({
-        date,
-        branchId: Number(branchId),
-        description: draft.description.trim(),
-        amount: Number(draft.amount),
-      }));
-      await addExpenses(expenseRequests);
-      setDrafts([]);
+      // New rows — one batch request.
+      if (drafts.length > 0) {
+        const expenseRequests = drafts.map((draft) => ({
+          date,
+          branchId: Number(branchId),
+          description: draft.description,
+          amount: Number(draft.amount),
+        }));
+        await addExpenses(expenseRequests);
+        setDrafts([]);
+      }
+
+      // Staged edits to existing rows — one PUT per edited row (no batch
+      // update endpoint exists yet; edits are expected to be occasional
+      // corrections, not routine bulk actions like adding new expenses).
+      for (const id of pendingEditIds) {
+        await updateExpense(id, {
+          date,
+          branchId: Number(branchId),
+          description: pendingEdits[id].description ?? savedExpenses.find((e) => e.id === id)?.description,
+          amount: pendingEdits[id].amount,
+        });
+      }
+      setPendingEdits({});
+
       setSuccess(true);
       onSaved?.();
       return { ok: true };
@@ -104,6 +237,7 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
     try {
       await addExpenses([{ date, branchId: Number(branchId), description: "No expenses recorded", amount: 0 }]);
       setSuccess(true);
+      setConfirmNoExpensesOpen(false);
       onSaved?.();
     } catch (err) {
       setApiError(err.message);
@@ -112,21 +246,23 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
     }
   };
 
+  const handleCancelNoExpenses = () => setConfirmNoExpensesOpen(false);
+
   return (
     <div>
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-            <ReceiptText size={16} className="text-red-600" />
+          <div className="w-9 h-9 rounded-lg bg-[#f7e9d8] flex items-center justify-center shrink-0">
+            <ReceiptText size={16} className="text-[#a3672a]" />
           </div>
           <div>
             <p className="text-sm font-bold text-slate-900 leading-tight">Expenses</p>
-            <p className="text-xs text-slate-500 leading-tight">Add expenses for this shift</p>
+            <p className="text-xs text-slate-500 leading-tight">Log costs paid out during this shift</p>
           </div>
         </div>
         <button
-          onClick={addDraftRow}
-          className="flex items-center gap-1.5 text-xs font-semibold text-teal-700 border border-teal-200 rounded-full px-3 py-1.5 hover:bg-teal-50"
+          onClick={openAddExpense}
+          className="flex items-center gap-1.5 text-xs font-semibold text-[#a3672a] bg-[#fdf6ea] border border-[#f0dcc0] rounded-full px-3 py-1.5 hover:bg-[#fbeedb]"
         >
           <Plus size={13} /> Add Expense
         </button>
@@ -145,86 +281,164 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved },
           {errors.header}
         </div>
       )}
-      {errors.rows && (
-        <div className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4">
-          {errors.rows}
-        </div>
-      )}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="w-full text-sm min-w-[360px]">
-          <thead>
-            <tr className="bg-red-50 text-red-700 text-xs uppercase tracking-wide">
-              <th className="text-left font-semibold py-3 px-3">Description</th>
-              <th className="text-right font-semibold py-3 px-3 w-40">Amount (₱)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {savedExpenses.map((e, i) => (
-              <tr key={e.id ?? i} className={`border-b border-slate-100 last:border-0 ${i % 2 === 0 ? "bg-slate-50" : "bg-white"}`}>
-                <td className="py-2.5 px-3 text-slate-700">{e.description}</td>
-                <td className="py-2.5 px-3 text-right text-slate-700">{Number(e.amount).toFixed(2)}</td>
-              </tr>
-            ))}
+      <div className="flex flex-col gap-2.5">
+        {savedExpenses.map((e, i) => {
+          const isBusy = rowBusyId === e.id;
+          const isPending = !!pendingEdits[e.id];
+          return (
+            <div
+              key={e.id ?? i}
+              className="flex items-center justify-between px-3.5 py-3 rounded-xl border border-slate-100"
+            >
+              <div>
+                <p className="text-sm font-semibold text-slate-800 m-0">{e.description}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-slate-800">{money(e.amount)}</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => openEditExpense(e)}
+                    className="w-7 h-7 rounded-md bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                  <button
+                    onClick={() => deleteExisting(e.id)}
+                    disabled={isBusy}
+                    className="w-7 h-7 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 disabled:opacity-60"
+                  >
+                    {isBusy ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
 
-            {drafts.map((d) => (
-              <tr key={d.id} className="bg-amber-50/40 border-b border-slate-100 last:border-0">
-                <td className="py-2 px-3">
-                  <input
-                    value={d.description}
-                    onChange={(e) => updateDraft(d.id, "description", e.target.value)}
-                    placeholder="e.g. Oil"
-                    autoFocus
-                    className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
-                  />
-                </td>
-                <td className="py-2 px-3">
-                  <div className="flex items-center justify-end gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={d.amount}
-                      onChange={(e) => updateDraft(d.id, "amount", e.target.value)}
-                      placeholder="0.00"
-                      className="w-24 text-right border border-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
-                    />
-                    <button
-                      onClick={() => removeDraft(d.id)}
-                      className="w-7 h-7 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 shrink-0"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+        {drafts.map((d) => (
+          <div key={d.id} className="flex items-center justify-between px-3.5 py-3 rounded-xl border border-slate-100">
+            <div>
+              <p className="text-sm font-semibold text-slate-800 m-0">{d.description}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-bold text-slate-800">{money(d.amount)}</span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => openEditDraft(d)}
+                  className="w-7 h-7 rounded-md bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200"
+                >
+                  <Pencil size={12} />
+                </button>
+                <button
+                  onClick={() => removeDraft(d.id)}
+                  className="w-7 h-7 rounded-md bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 shrink-0"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
 
-            {loading && (
-              <tr>
-                <td colSpan={2} className="py-6 text-center text-slate-400">
-                  <Loader2 size={16} className="inline animate-spin mr-2" /> Loading…
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        {loading && (
+          <div className="py-6 text-center text-slate-400">
+            <Loader2 size={16} className="inline animate-spin mr-2" /> Loading…
+          </div>
+        )}
       </div>
 
       <div className="mt-4 bg-red-50 rounded-xl p-4 flex items-center justify-between">
         <p className="text-sm font-bold text-slate-900">Total Expenses</p>
-        <span className="text-xl font-extrabold text-red-600 tabular-nums">₱{totalExpenses.toFixed(2)}</span>
+        <span className="text-xl font-extrabold text-red-600 tabular-nums">{money(totalExpenses)}</span>
       </div>
 
-      <div className="mt-4">
-        <button
-          onClick={alreadyMarkedNoExpense ? undefined : handleMarkNoExpenses}
-          disabled={alreadyMarkedNoExpense || savedExpenses.length > 0 || drafts.length > 0}
-          className="text-xs text-slate-400 hover:text-slate-600 hover:underline disabled:opacity-50 disabled:hover:no-underline"
-        >
-          {alreadyMarkedNoExpense ? "Marked as no expenses" : "Confirm: no expenses for this shift"}
-        </button>
-      </div>
+      {!hasRealExpenses && (
+        <div className="mt-4">
+          <button
+            onClick={alreadyMarkedNoExpense ? undefined : handleMarkNoExpenses}
+            disabled={alreadyMarkedNoExpense || drafts.length > 0}
+            className="text-xs text-slate-400 hover:text-slate-600 hover:underline disabled:opacity-50 disabled:hover:no-underline"
+          >
+            {alreadyMarkedNoExpense ? "Marked as no expenses" : "Confirm: no expenses for this shift"}
+          </button>
+        </div>
+      )}
+
+      <Modal open={confirmNoExpensesOpen} onClose={handleCancelNoExpenses} title="No expenses entered">
+        <div className="text-center py-2">
+          <p className="text-sm text-slate-600">
+            You haven't added any expenses for this shift. Confirm there really were none?
+          </p>
+          <div className="flex items-center justify-center gap-3 mt-5">
+            <button
+              onClick={handleCancelNoExpenses}
+              className="px-5 py-2 text-sm font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+            >
+              Go back, add one
+            </button>
+            <button
+              onClick={handleMarkNoExpenses}
+              disabled={submitting}
+              className="flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-lg bg-[#8f1d1d] text-white hover:bg-[#7a1414] disabled:opacity-60"
+            >
+              {submitting && <Loader2 size={14} className="animate-spin" />}
+              Yes, no expenses
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={expenseModalOpen} onClose={closeExpenseModal} title={editingTarget ? "Edit Expense" : "Add Expense"}>
+        <div className="py-1">
+          <label className="text-xs font-semibold text-[#8f1d1d]">Item Name</label>
+          <input
+            value={modalDescription}
+            onChange={(e) => setModalDescription(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && confirmExpenseModal()}
+            placeholder="e.g. Oil"
+            autoFocus
+            className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#f2c2be]"
+          />
+
+          <label className="text-xs font-semibold text-[#8f1d1d] mt-3 block">Amount</label>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-slate-400">₱</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={modalAmount}
+              onChange={(e) => setModalAmount(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && confirmExpenseModal()}
+              onWheel={(e) => e.target.blur()}
+              placeholder="0.00"
+              className="no-spinner w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#f2c2be]"
+            />
+          </div>
+
+          {modalError && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mt-3">
+              {modalError}
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-3 mt-5">
+            <button
+              onClick={closeExpenseModal}
+              className="px-5 py-2 text-sm font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmExpenseModal}
+              className="px-5 py-2 text-sm font-semibold rounded-lg bg-[#8f1d1d] text-white hover:bg-[#7a1414]"
+            >
+              {editingTarget ? "Save Changes" : "Add Expense"}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 });
