@@ -83,7 +83,13 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
   // ADDED — now matches Shift Reconciliation's "Amount to Remit" formula.
   // Amount to Remit is cash only — GCash is already in the owner's
   // account automatically, nothing to physically hand over there.
-  const totalToRemit = totalCash - Number(pettyCashNextday || 0);
+  // Petty Cash (starting float) is recorded for the books but no longer
+  // subtracted here — the full drawer count is what gets remitted;
+  // pettyCashNextday is just a record of what the float should be, not an
+  // amount held back from this total. GCash isn't added either — it's
+  // already in the owner's account automatically, nothing to physically
+  // hand over there.
+  const totalToRemit = totalCash;
 
   const money = (n) =>
     `₱${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -319,12 +325,11 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
               <span className="text-slate-600">Total Cash (Drawer)</span>
               <span className="font-bold text-slate-900">{money(totalCash)}</span>
             </div>
-            <div className="flex items-center justify-between py-1 text-sm">
-              <span className="text-slate-600">Less: Petty Cash (Starting Float)</span>
-              <span className="font-bold text-red-500">- {money(pettyCashNextday)}</span>
-            </div>
             <div className="flex items-center justify-between py-1 text-sm border-b border-slate-100 pb-2.5">
-              <span className="text-slate-500 text-xs">GCash ({money(gcash)}) already in owner's account — not remitted</span>
+              <span className="text-slate-500 text-xs">
+                Petty Cash ({money(pettyCashNextday)}) recorded for next shift's float — not deducted from remittance.
+                GCash ({money(gcash)}) already in owner's account — not remitted.
+              </span>
             </div>
 
             <div className="bg-emerald-50 rounded-xl px-3.5 py-2.5 mt-3 flex items-center justify-between">
