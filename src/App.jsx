@@ -9,6 +9,7 @@ import ContainerPricesPage from "./components/admin/ContainerPricesPage";
 import DailyRecordsAdminPage from "./components/admin/DailyRecordsAdminPage";
 import LoginPage from "./pages/LoginPage";
 import TimeClockPage from "./pages/TimeClockPage";
+import TimeClockDashboardPage from "./components/attendance/TimeClockDashboardPage";
 import RequireAuth from "./components/auth/RequireAuth";
 import RequireClockIn from "./components/auth/RequireClockIn";
 import { AccountManagementProvider } from "./context/AccountManagementContext";
@@ -57,6 +58,7 @@ export default function App() {
                         <Route element={<RequireClockIn />}>
                           <Route element={<DashboardLayout />}>
                             <Route index element={<DashboardHome />} />
+                            <Route path="time-clock" element={<TimeClockDashboardPage />} />
                             <Route path="employees" element={<EmployeesPage />} />
                             <Route path="access" element={<AccessPage />} />
                             <Route path="daily-closing-report" element={<DailyClosingReportPage />} />

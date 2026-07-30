@@ -15,6 +15,29 @@ export function AttendanceProvider({ children }) {
   const [openToday, setOpenToday] = useState([]);
   const [openTodayLoading, setOpenTodayLoading] = useState(false);
 
+  // Rolling history window for the Time Clock page's "This Week" table —
+  // scoped to whichever employee last called loadHistory (the logged-in
+  // user, viewing their own timesheet).
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const loadHistory = useCallback(async (employeeId, from, to) => {
+    if (!employeeId) {
+      setHistory([]);
+      return;
+    }
+    setHistoryLoading(true);
+    try {
+      const res = await AttendanceAPI.history(employeeId, from, to);
+      setHistory(res || []);
+    } catch (err) {
+      console.warn("GET /v1/attendance/history failed:", err.message);
+      setHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
   const loadOpenToday = useCallback(async () => {
   setOpenTodayLoading(true);
   try {
@@ -94,6 +117,12 @@ export function AttendanceProvider({ children }) {
     loadToday,
     clockIn,
     clockOut,
+    openToday,
+    openTodayLoading,
+    loadOpenToday,
+    history,
+    historyLoading,
+    loadHistory,
   };
 
   return <AttendanceContext.Provider value={value}>{children}</AttendanceContext.Provider>;

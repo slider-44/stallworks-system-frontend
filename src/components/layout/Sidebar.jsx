@@ -11,6 +11,7 @@ import {
   ClipboardList,
   ShieldCheck,
   ChefHat,
+  Clock,
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -18,6 +19,7 @@ import { useAuth } from "../../context/AuthContext";
 function buildNavSections(isAdmin) {
   const sections = [
     { label: "Dashboard", icon: LayoutDashboard, to: "/" },
+    { label: "Time Clock", icon: Clock, to: "/time-clock" },
     { label: "Daily Closing Report", icon: ClipboardList, to: "/daily-closing-report" },
     {
       label: "Sales Management",
