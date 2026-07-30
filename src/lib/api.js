@@ -202,6 +202,8 @@ export const AttendanceAPI = {
       method: "POST",
       body: JSON.stringify({ employeeId }),
     }),
+  history: (employeeId, from, to) =>
+    request(`/attendance/history?employeeId=${employeeId}&from=${from}&to=${to}`),
 };
 
 // ---- Cash Summary (core-services) --------------------------------------
