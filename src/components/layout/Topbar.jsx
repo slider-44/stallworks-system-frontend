@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, Search, Moon, Bell, LogOut, Clock, CheckCircle2 } from "lucide-react";
+import { Menu, Search, Moon, Bell, LogOut, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useAttendance } from "../../context/AttendanceContext";
 
@@ -41,17 +41,11 @@ export default function Topbar({ onMenuClick }) {
 
       <div className="flex items-center gap-2 ml-auto">
         {clockedInNotOut && (
-          <div className="flex items-center gap-2 bg-emerald-800/50 border border-emerald-600/40 rounded-full pl-3 pr-1 py-1">
+          <div className="flex items-center gap-2 bg-emerald-800/50 border border-emerald-600/40 rounded-full px-3 py-1">
             <CheckCircle2 size={13} className="text-emerald-300 shrink-0" />
             <span className="text-xs font-semibold text-emerald-100 whitespace-nowrap">
               Clocked in {formatTime12(today.timeIn)}
             </span>
-            <button
-              onClick={() => navigate("/clock-in")}
-              className="flex items-center gap-1 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-full px-3 py-1"
-            >
-              <Clock size={12} /> Clock Out
-            </button>
           </div>
         )}
 
