@@ -1,7 +1,6 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import DashboardLayout from "./components/layout/DashboardLayout";
-import DashboardHome from "./components/DashboardHome";
 import EmployeesPage from "./components/employees/EmployeesPage";
 import AccessPage from "./components/access/AccessPage";
 import DailyClosingReportPage from "./components/dailyclosing/DailyClosingReportPage";
@@ -20,6 +19,7 @@ import { CashSummaryProvider } from "./context/CashSummaryContext";
 import { AuthProvider } from "./context/AuthContext";
 import { AttendanceProvider } from "./context/AttendanceContext";
 import AdminAttendancePage from "./components/admin/AdminAttendancePage";
+import AdminTimeRecordsPage from "./components/admin/AdminTimeRecordsPage";
 
 // Sales, Expenses, and Cash Count are consolidated into one page again —
 // Daily Closing Report — with tabs + a sticky live summary sidebar.
@@ -57,7 +57,11 @@ export default function App() {
                         {/* Everything else — STAFF must clock in first */}
                         <Route element={<RequireClockIn />}>
                           <Route element={<DashboardLayout />}>
-                            <Route index element={<DashboardHome />} />
+                            {/* Dashboard is parked for now — nothing renders it, so it's
+                                unreachable regardless of how someone gets to "/". Every
+                                existing navigate("/") call site (login, clock-in success,
+                                the Home breadcrumb) lands here instead automatically. */}
+                            <Route index element={<Navigate to="/daily-closing-report" replace />} />
                             <Route path="time-clock" element={<TimeClockDashboardPage />} />
                             <Route path="employees" element={<EmployeesPage />} />
                             <Route path="access" element={<AccessPage />} />
@@ -65,6 +69,7 @@ export default function App() {
                             <Route path="admin/container-prices" element={<ContainerPricesPage />} />
                             <Route path="admin/daily-records" element={<DailyRecordsAdminPage />} />
                             <Route path="admin/attendance" element={<AdminAttendancePage />} />
+                            <Route path="admin/time-records" element={<AdminTimeRecordsPage />} />
                           </Route>
                         </Route>
                       </Route>

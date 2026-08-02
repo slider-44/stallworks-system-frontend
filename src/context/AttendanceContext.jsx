@@ -38,6 +38,36 @@ export function AttendanceProvider({ children }) {
     }
   }, []);
 
+  // Time Records (admin) — the filtered table + edit/delete actions on
+  // the Time Records page. Separate from `records`/`loadAll` above (that
+  // one is dead code from an old manual-entry form).
+  const [adminRecords, setAdminRecords] = useState([]);
+  const [adminRecordsLoading, setAdminRecordsLoading] = useState(false);
+
+  const loadAdminRecords = useCallback(async (date, branchId, employeeId) => {
+    setAdminRecordsLoading(true);
+    try {
+      const res = await AttendanceAPI.records({ date, branchId, employeeId });
+      setAdminRecords(res || []);
+    } catch (err) {
+      console.warn("GET /v1/attendance failed:", err.message);
+      setAdminRecords([]);
+    } finally {
+      setAdminRecordsLoading(false);
+    }
+  }, []);
+
+  const updateRecord = useCallback(async (id, payload) => {
+    const updated = await AttendanceAPI.updateRecord(id, payload);
+    setAdminRecords((prev) => prev.map((r) => (r.id === id ? updated : r)));
+    return updated;
+  }, []);
+
+  const deleteRecord = useCallback(async (id) => {
+    await AttendanceAPI.deleteRecord(id);
+    setAdminRecords((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
   const loadOpenToday = useCallback(async () => {
   setOpenTodayLoading(true);
   try {
@@ -123,6 +153,11 @@ export function AttendanceProvider({ children }) {
     history,
     historyLoading,
     loadHistory,
+    adminRecords,
+    adminRecordsLoading,
+    loadAdminRecords,
+    updateRecord,
+    deleteRecord,
   };
 
   return <AttendanceContext.Provider value={value}>{children}</AttendanceContext.Provider>;
