@@ -62,10 +62,13 @@ export default function ReconciliationPage({
   const gcashCollected = Number(gcash || 0);
   const nextShiftFloat = Number(pettyCashNextday || 0);
   const actualReceived = cashDrawerCount + gcashCollected;
-  // Cash to Hand Over is the full counted drawer — the next-shift float is
-  // recorded for the books but no longer subtracted from what gets handed
-  // to the owner.
-  const cashToHandOver = cashDrawerCount;
+  // Cash to Hand Over = drawer count minus the float being kept aside for
+  // tomorrow's shift — that float physically stays in the drawer, so it
+  // was never meant to go to the owner. (Not to be confused with the Cash
+  // Count tab's remittance total, a separate step that intentionally does
+  // NOT subtract the float — that one reflects the full drawer before this
+  // breakdown happens.)
+  const cashToHandOver = cashDrawerCount - nextShiftFloat;
 
   const STATUS_CONFIG = {
     BALANCED: { bg: "bg-emerald-50", text: "text-emerald-700", icon: CheckCircle2, label: "Balanced" },
@@ -207,7 +210,7 @@ export default function ReconciliationPage({
       <div className="border border-slate-100 rounded-2xl p-5 mb-5">
         <StepBadge n={2} />
         <h3 className="text-lg font-bold text-slate-900 mt-2">Calculate Cash to Hand Over</h3>
-        <p className="text-xs text-slate-400 mb-4">This is the full counted cash to turn in to the owner.</p>
+        <p className="text-xs text-slate-400 mb-4">This is the counted cash to turn in to the owner, after setting aside tomorrow's float.</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           <div className="lg:col-span-8">
@@ -229,8 +232,9 @@ export default function ReconciliationPage({
                 iconBg="bg-[#f7e9d8]"
                 iconColor="text-[#a3672a]"
                 label="Starting Float (Petty Cash)"
-                sub="For next shift — recorded only, not deducted below"
+                sub="Kept in the drawer for next shift — deducted below"
                 value={nextShiftFloat}
+                negative
               />
               <BreakdownRow
                 icon={Smartphone}
@@ -248,7 +252,7 @@ export default function ReconciliationPage({
               </div>
               <div className="flex-1">
                 <p className="text-sm font-bold text-emerald-800">Cash to Hand Over</p>
-                <p className="text-xs text-emerald-600">Full counted cash to turn in to the owner.</p>
+                <p className="text-xs text-emerald-600">Drawer count minus tomorrow's float.</p>
               </div>
               <span className="text-xl font-extrabold text-emerald-700 shrink-0">{money(cashToHandOver)}</span>
             </div>

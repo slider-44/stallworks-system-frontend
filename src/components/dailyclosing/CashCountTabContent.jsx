@@ -23,6 +23,74 @@ const BILLS = [1000, 500, 200, 100, 50, 20];
 const COINS = [10, 5, 1];
 const ALL_DENOMINATIONS = [...BILLS, ...COINS];
 
+// Both defined at module scope, not inside CashCountTabContent — a
+// component declared inline inside another component gets a brand-new
+// function identity every render. Since typing a count updates state and
+// re-renders the parent, React saw a "new" component type on every
+// keystroke and unmounted/remounted the real <input> DOM nodes, which is
+// what dropped focus after the first digit and merged new digits with
+// the stale "0" instead of replacing it.
+const Stepper = ({ value, onChange }) => (
+  <div className="flex items-center justify-center gap-1">
+    <button
+      type="button"
+      onClick={() => onChange(value - 1)}
+      className="w-6 h-6 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 shrink-0"
+    >
+      <Minus size={12} />
+    </button>
+    <input
+      type="number"
+      min="0"
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value) || 0)}
+      onWheel={(e) => e.target.blur()}
+      // Selects the existing text on focus so typing replaces the "0"
+      // instead of inserting next to it.
+      onFocus={(e) => e.target.select()}
+      className="no-spinner w-10 text-center font-bold text-[#8f1d1d] bg-[#fbe4e2] border-2 border-[#f2c2be] rounded-md px-0.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#e8a39c]"
+    />
+    <button
+      type="button"
+      onClick={() => onChange(value + 1)}
+      className="w-6 h-6 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 shrink-0"
+    >
+      <Plus size={12} />
+    </button>
+  </div>
+);
+
+const DenominationTable = ({ icon: Icon, title, denoms, counts, setCount, money }) => (
+  <div>
+    <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3.5 py-2.5 mb-3">
+      <Icon size={16} className="text-[#8f1d1d]" />
+      <p className="text-sm font-bold text-slate-800 uppercase tracking-wide">{title}</p>
+    </div>
+    <table className="w-full text-sm table-fixed">
+      <thead>
+        <tr className="text-xs text-slate-400 uppercase tracking-wide">
+          <th className="text-left font-semibold py-2 w-[34%]">Denomination</th>
+          <th className="text-center font-semibold py-2 w-[38%]">Count</th>
+          <th className="text-right font-semibold py-2 w-[28%]">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {denoms.map((d) => (
+          <tr key={d} className="border-t border-slate-100">
+            <td className="py-3 text-slate-700 font-medium truncate">₱{d}</td>
+            <td className="py-3">
+              <Stepper value={counts[d]} onChange={(v) => setCount(d, v)} />
+            </td>
+            <td className="py-3 text-right font-semibold text-slate-800 truncate">
+              {money(d * (Number(counts[d]) || 0))}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
+
 const CashCountTabContent = forwardRef(function CashCountTabContent(
   {
     date,
@@ -163,64 +231,6 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
 
   useImperativeHandle(ref, () => ({ submit: handleSave }));
 
-  const Stepper = ({ value, onChange }) => (
-    <div className="flex items-center justify-center gap-1">
-      <button
-        type="button"
-        onClick={() => onChange(value - 1)}
-        className="w-6 h-6 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 shrink-0"
-      >
-        <Minus size={12} />
-      </button>
-      <input
-        type="number"
-        min="0"
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value) || 0)}
-        onWheel={(e) => e.target.blur()}
-        className="no-spinner w-10 text-center font-bold text-[#8f1d1d] bg-[#fbe4e2] border-2 border-[#f2c2be] rounded-md px-0.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#e8a39c]"
-      />
-      <button
-        type="button"
-        onClick={() => onChange(value + 1)}
-        className="w-6 h-6 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 shrink-0"
-      >
-        <Plus size={12} />
-      </button>
-    </div>
-  );
-
-  const DenominationTable = ({ icon: Icon, title, denoms }) => (
-    <div>
-      <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3.5 py-2.5 mb-3">
-        <Icon size={16} className="text-[#8f1d1d]" />
-        <p className="text-sm font-bold text-slate-800 uppercase tracking-wide">{title}</p>
-      </div>
-      <table className="w-full text-sm table-fixed">
-        <thead>
-          <tr className="text-xs text-slate-400 uppercase tracking-wide">
-            <th className="text-left font-semibold py-2 w-[34%]">Denomination</th>
-            <th className="text-center font-semibold py-2 w-[38%]">Count</th>
-            <th className="text-right font-semibold py-2 w-[28%]">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {denoms.map((d) => (
-            <tr key={d} className="border-t border-slate-100">
-              <td className="py-3 text-slate-700 font-medium truncate">₱{d}</td>
-              <td className="py-3">
-                <Stepper value={counts[d]} onChange={(v) => setCount(d, v)} />
-              </td>
-              <td className="py-3 text-right font-semibold text-slate-800 truncate">
-                {money(d * (Number(counts[d]) || 0))}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-
   return (
     <div>
       {/* No standalone "Cash Count" title here — the stepper above already
@@ -239,9 +249,9 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
         {/* Bills + Coins — own box */}
         <div className="md:col-span-8 bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-            <DenominationTable icon={CreditCard} title="Bills" denoms={BILLS} />
+            <DenominationTable icon={CreditCard} title="Bills" denoms={BILLS} counts={counts} setCount={setCount} money={money} />
             <div>
-              <DenominationTable icon={Coins} title="Coins" denoms={COINS} />
+              <DenominationTable icon={Coins} title="Coins" denoms={COINS} counts={counts} setCount={setCount} money={money} />
               <div className="bg-slate-50 rounded-lg px-4 py-3 flex items-center justify-between mt-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-[#8f1d1d]">Subtotal Cash</p>
                 <span className="text-lg font-extrabold text-[#8f1d1d]">{money(totalCash)}</span>
@@ -393,6 +403,7 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
             onChange={(e) => setPettyCashInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && confirmPettyCash()}
             onWheel={(e) => e.target.blur()}
+            onFocus={(e) => e.target.select()}
             placeholder="0.00"
             autoFocus
             className="no-spinner w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200"
@@ -433,6 +444,7 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
             onChange={(e) => setGcashInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && confirmGcash()}
             onWheel={(e) => e.target.blur()}
+            onFocus={(e) => e.target.select()}
             placeholder="0.00"
             autoFocus
             className="no-spinner w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"

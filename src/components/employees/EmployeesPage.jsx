@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import { Plus, KeyRound, Loader2, AlertCircle } from "lucide-react";
+import { Plus, KeyRound, Loader2, AlertCircle, ShieldAlert } from "lucide-react";
 import { useAccountManagement } from "../../context/AccountManagementContext";
+import { useAuth } from "../../context/AuthContext";
 import EmployeeFormModal from "./EmployeeFormModal";
 import AccessFormModal from "../access/AccessFormModal";
 
 export default function EmployeesPage() {
+  const { isAdmin } = useAuth();
   const { employees, accounts, branches, loading, error, usingMockData } =
     useAccountManagement();
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
@@ -13,6 +15,17 @@ export default function EmployeesPage() {
   const branchName = (id) => branches.find((b) => b.id === id)?.name ?? id;
   const hasAccess = (employeeId) =>
     accounts.some((a) => a.employeeId === employeeId);
+
+  // Sidebar already hides this page for staff — this is the real gate,
+  // since the route itself was still reachable by typing the URL.
+  if (!isAdmin) {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 text-center">
+        <ShieldAlert size={28} className="mx-auto text-amber-500 mb-2" />
+        <p className="text-slate-600 font-medium">Admin or Manager access required.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">

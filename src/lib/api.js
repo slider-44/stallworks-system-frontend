@@ -204,6 +204,23 @@ export const AttendanceAPI = {
     }),
   history: (employeeId, from, to) =>
     request(`/attendance/history?employeeId=${employeeId}&from=${from}&to=${to}`),
+
+  // Time Records (admin) — date is always required, branchId/employeeId
+  // are optional narrowing filters ("All Branches"/"All Crew" in the UI).
+  records: ({ date, branchId, employeeId }) => {
+    const qs = new URLSearchParams(
+      Object.fromEntries(
+        Object.entries({ date, branchId, employeeId }).filter(([, v]) => v !== undefined && v !== "")
+      )
+    ).toString();
+    return request(`/attendance?${qs}`);
+  },
+  updateRecord: (id, { timeIn, timeOut, reason, updatedBy }) =>
+    request(`/attendance/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ timeIn, timeOut, reason, updatedBy }),
+    }),
+  deleteRecord: (id) => request(`/attendance/${id}`, { method: "DELETE" }),
 };
 
 // ---- Cash Summary (core-services) --------------------------------------

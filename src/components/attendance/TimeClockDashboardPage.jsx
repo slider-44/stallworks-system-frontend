@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Clock, LogOut, LogIn, Loader2 } from "lucide-react";
+import { Clock, LogOut, LogIn, Loader2, ShieldAlert } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useAttendance } from "../../context/AttendanceContext";
 import { useAccountManagement } from "../../context/AccountManagementContext";
@@ -26,26 +26,34 @@ const formatDateShort = (dateStr) => {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
-// timeStr is "HH:mm" or "HH:mm:ss". endTime falls back to "now" when the
-// shift is still open, so both today's live counter and closed rows in
-// the history table share one calculation.
-const minutesBetween = (startStr, endStr, now) => {
-  if (!startStr) return 0;
-  const [sh, sm] = startStr.split(":").map(Number);
-  const start = new Date(now);
-  start.setHours(sh, sm, 0, 0);
+// Duration for a shift that may cross midnight, live (open) or not.
+// Anchors on the record's own calendar date instead of reconstructing
+// both ends on "now"'s date — that's what silently clamped an overnight
+// shift's hours to 0 once the wall clock ticked past midnight (start
+// would land "in the future" relative to a same-day end/now).
+const minutesBetween = (dateStr, startStr, endStr, now) => {
+  if (!startStr || !dateStr) return 0;
+  const start = new Date(`${dateStr}T${startStr}`);
 
-  let end;
   if (endStr) {
-    const [eh, em] = endStr.split(":").map(Number);
-    end = new Date(now);
-    end.setHours(eh, em, 0, 0);
-  } else {
-    end = now;
+    // Closed shift — if the raw end lands before start, it happened the
+    // next calendar day (e.g. 22:00 -> 02:00), so roll it forward 24h.
+    let end = new Date(`${dateStr}T${endStr}`);
+    if (end < start) end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+    return Math.max(0, Math.floor((end - start) / 60000));
   }
 
-  const diffMs = end - start;
-  return diffMs > 0 ? Math.floor(diffMs / 60000) : 0;
+  // Still open — measure against the real current moment, which already
+  // advances into the next day correctly on its own.
+  return Math.max(0, Math.floor((now - start) / 60000));
+};
+
+// Pure HH:mm comparison — drives the "+1d" badge, no date math needed.
+const crossesMidnight = (startStr, endStr) => {
+  if (!startStr || !endStr) return false;
+  const [sh, sm] = startStr.split(":").map(Number);
+  const [eh, em] = endStr.split(":").map(Number);
+  return eh * 60 + em < sh * 60 + sm;
 };
 
 const formatHoursMinutes = (totalMinutes) => {
@@ -59,7 +67,7 @@ const formatHoursMinutes = (totalMinutes) => {
 // a Today's Summary panel, and a rolling "This Week" history table. Lives
 // inside DashboardLayout, so it gets the sidebar/topbar for free.
 export default function TimeClockDashboardPage() {
-  const { employeeId, currentEmployeeName, branchIds } = useAuth();
+  const { employeeId, currentEmployeeName, branchIds, role } = useAuth();
   const { today, todayLoading, loadToday, clockIn, clockOut, history, historyLoading, loadHistory } =
     useAttendance();
   const { branches, loading: employeesLoading } = useAccountManagement();
@@ -76,18 +84,18 @@ export default function TimeClockDashboardPage() {
   // genuinely don't have it yet (e.g. an admin, who RequireClockIn never
   // loads `today` for at all).
   useEffect(() => {
-    if (!employeeId) return;
+    if (!employeeId || role !== "STAFF") return;
     if (today === null && !todayLoading) {
       loadToday(employeeId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employeeId]);
+  }, [employeeId, role]);
 
   useEffect(() => {
-    if (!employeeId) return;
+    if (!employeeId || role !== "STAFF") return;
     loadHistory(employeeId, daysAgoISO(6), todayISO());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employeeId]);
+  }, [employeeId, role]);
 
   // Ticks every second so the live clock and "on shift" duration stay
   // current without the user having to refresh.
@@ -104,7 +112,7 @@ export default function TimeClockDashboardPage() {
     return branches.find((b) => String(b.id) === String(branchId))?.name || "—";
   }, [branches, today, branchIds]);
 
-  const minutesSoFar = today?.timeIn ? minutesBetween(today.timeIn, today.timeOut, now) : 0;
+  const minutesSoFar = today?.timeIn ? minutesBetween(today.date, today.timeIn, today.timeOut, now) : 0;
 
   const handleClockIn = async () => {
     if (!branchIds[0]) {
@@ -135,6 +143,15 @@ export default function TimeClockDashboardPage() {
       setBusy(false);
     }
   };
+
+  if (role !== "STAFF") {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 text-center">
+        <ShieldAlert size={28} className="mx-auto text-amber-500 mb-2" />
+        <p className="text-slate-600 font-medium">Time Clock is for staff accounts — admins/managers don't clock in.</p>
+      </div>
+    );
+  }
 
   if (todayLoading || employeesLoading) {
     return (
@@ -270,13 +287,25 @@ export default function TimeClockDashboardPage() {
               <tbody>
                 {history.map((rec) => {
                   const open = !rec.timeOut;
-                  const mins = minutesBetween(rec.timeIn, rec.timeOut, now);
+                  const overnight = !open && crossesMidnight(rec.timeIn, rec.timeOut);
+                  const mins = minutesBetween(rec.date, rec.timeIn, rec.timeOut, now);
                   return (
                     <tr key={rec.id} className="border-t border-slate-100">
                       <td className="px-5 py-3 font-semibold text-slate-800">{formatDateShort(rec.date)}</td>
                       <td className="px-5 py-3 text-slate-600">{formatTime12(rec.timeIn)}</td>
                       <td className={`px-5 py-3 ${open ? "text-slate-400" : "text-slate-600"}`}>
-                        {open ? "In progress" : formatTime12(rec.timeOut)}
+                        {open ? (
+                          "In progress"
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5">
+                            {formatTime12(rec.timeOut)}
+                            {overnight && (
+                              <span className="inline-flex items-center text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                                +1d
+                              </span>
+                            )}
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-3 font-semibold text-slate-800">{formatHoursMinutes(mins)}</td>
                       <td className="px-5 py-3">
