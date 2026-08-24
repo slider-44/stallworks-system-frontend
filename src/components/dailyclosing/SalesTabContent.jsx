@@ -5,6 +5,44 @@ import { useContainerPrices } from "../../context/ContainerPriceContext";
 import { useAuth } from "../../context/AuthContext";
 import Modal from "../ui/Modal";
 
+// Defined at module scope, not inside SalesTabContent — a component
+// declared inline inside another component gets a brand-new function
+// identity on every render. React then treats it as a different
+// component type on each re-render (which typing triggers, since it
+// updates state), so it was unmounting/remounting the real <input> DOM
+// node on every keystroke. That's what dropped focus after one digit and
+// made the stale "0" merge weirdly with whatever you typed next instead
+// of being replaced.
+const Stepper = ({ value, onChange }) => (
+  <div className="flex items-center gap-1.5">
+    <button
+      type="button"
+      onClick={() => onChange(value - 1)}
+      className="w-7 h-7 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100"
+    >
+      <Minus size={13} />
+    </button>
+    <input
+      type="number"
+      min="0"
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value) || 0)}
+      onWheel={(e) => e.target.blur()}
+      // Selects the existing text on focus so typing replaces the "0"
+      // instead of inserting next to it.
+      onFocus={(e) => e.target.select()}
+      className="no-spinner w-12 text-center font-bold text-[#a3672a] bg-[#f7e9d8] border-2 border-[#f0dcc0] rounded-md px-1 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#e9d4ae]"
+    />
+    <button
+      type="button"
+      onClick={() => onChange(value + 1)}
+      className="w-7 h-7 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100"
+    >
+      <Plus size={13} />
+    </button>
+  </div>
+);
+
 const SalesTabContent = forwardRef(function SalesTabContent(
   { date, branchId, employeeId, timeIn, timeOut, onLiveTotalChange, onSaved },
   ref
@@ -124,7 +162,7 @@ const SalesTabContent = forwardRef(function SalesTabContent(
     try {
       await addSalesReport({
         employeeId: Number(employeeId),
-        actorEmployeeId: Number(loggedInEmployeeId),
+        updatedBy: Number(loggedInEmployeeId),
         branchId: Number(branchId),
         date,
         timeIn,
@@ -175,33 +213,6 @@ const SalesTabContent = forwardRef(function SalesTabContent(
 
   const money = (n) =>
     `₱${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-  const Stepper = ({ value, onChange }) => (
-    <div className="flex items-center gap-1.5">
-      <button
-        type="button"
-        onClick={() => onChange(value - 1)}
-        className="w-7 h-7 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100"
-      >
-        <Minus size={13} />
-      </button>
-      <input
-        type="number"
-        min="0"
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value) || 0)}
-        onWheel={(e) => e.target.blur()}
-        className="no-spinner w-12 text-center font-bold text-[#a3672a] bg-[#f7e9d8] border-2 border-[#f0dcc0] rounded-md px-1 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#e9d4ae]"
-      />
-      <button
-        type="button"
-        onClick={() => onChange(value + 1)}
-        className="w-7 h-7 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100"
-      >
-        <Plus size={13} />
-      </button>
-    </div>
-  );
 
   return (
     <div>
@@ -279,6 +290,7 @@ const SalesTabContent = forwardRef(function SalesTabContent(
                       value={addOnsAmount}
                       onChange={(e) => setAddOnsAmount(e.target.value)}
                       onWheel={(e) => e.target.blur()}
+                      onFocus={(e) => e.target.select()}
                       placeholder="0.00"
                       className="no-spinner w-24 text-right border border-slate-200 rounded-md px-2 py-1.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#f2c2be]"
                     />

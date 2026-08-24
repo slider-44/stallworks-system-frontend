@@ -25,6 +25,13 @@ export function daysAgoISO(n) {
   return manilaDateFormatter.format(d);
 }
 
+// "YYYY-MM" for the current Manila month — matches the shape backend
+// endpoints parse with @DateTimeFormat(pattern = "yyyy-MM"), and is what
+// <input type="month"> both expects and returns.
+export function currentMonthISO() {
+  return todayISO().slice(0, 7);
+}
+
 export function formatDateLongManila(dateStr) {
   if (!dateStr) return "";
   const d = new Date(`${dateStr}T00:00:00`);

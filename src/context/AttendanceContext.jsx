@@ -15,6 +15,59 @@ export function AttendanceProvider({ children }) {
   const [openToday, setOpenToday] = useState([]);
   const [openTodayLoading, setOpenTodayLoading] = useState(false);
 
+  // Rolling history window for the Time Clock page's "This Week" table —
+  // scoped to whichever employee last called loadHistory (the logged-in
+  // user, viewing their own timesheet).
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const loadHistory = useCallback(async (employeeId, from, to) => {
+    if (!employeeId) {
+      setHistory([]);
+      return;
+    }
+    setHistoryLoading(true);
+    try {
+      const res = await AttendanceAPI.history(employeeId, from, to);
+      setHistory(res || []);
+    } catch (err) {
+      console.warn("GET /v1/attendance/history failed:", err.message);
+      setHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  // Time Records (admin) — the filtered table + edit/delete actions on
+  // the Time Records page. Separate from `records`/`loadAll` above (that
+  // one is dead code from an old manual-entry form).
+  const [adminRecords, setAdminRecords] = useState([]);
+  const [adminRecordsLoading, setAdminRecordsLoading] = useState(false);
+
+  const loadAdminRecords = useCallback(async (date, branchId, employeeId) => {
+    setAdminRecordsLoading(true);
+    try {
+      const res = await AttendanceAPI.records({ date, branchId, employeeId });
+      setAdminRecords(res || []);
+    } catch (err) {
+      console.warn("GET /v1/attendance failed:", err.message);
+      setAdminRecords([]);
+    } finally {
+      setAdminRecordsLoading(false);
+    }
+  }, []);
+
+  const updateRecord = useCallback(async (id, payload) => {
+    const updated = await AttendanceAPI.updateRecord(id, payload);
+    setAdminRecords((prev) => prev.map((r) => (r.id === id ? updated : r)));
+    return updated;
+  }, []);
+
+  const deleteRecord = useCallback(async (id) => {
+    await AttendanceAPI.deleteRecord(id);
+    setAdminRecords((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
   const loadOpenToday = useCallback(async () => {
   setOpenTodayLoading(true);
   try {
@@ -94,6 +147,17 @@ export function AttendanceProvider({ children }) {
     loadToday,
     clockIn,
     clockOut,
+    openToday,
+    openTodayLoading,
+    loadOpenToday,
+    history,
+    historyLoading,
+    loadHistory,
+    adminRecords,
+    adminRecordsLoading,
+    loadAdminRecords,
+    updateRecord,
+    deleteRecord,
   };
 
   return <AttendanceContext.Provider value={value}>{children}</AttendanceContext.Provider>;

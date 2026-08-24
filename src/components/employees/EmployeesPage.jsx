@@ -1,18 +1,35 @@
 import React, { useState } from "react";
-import { Plus, KeyRound, Loader2, AlertCircle } from "lucide-react";
+import { Plus, KeyRound, Loader2, AlertCircle, ShieldAlert, Pencil } from "lucide-react";
 import { useAccountManagement } from "../../context/AccountManagementContext";
+import { useAuth } from "../../context/AuthContext";
 import EmployeeFormModal from "./EmployeeFormModal";
 import AccessFormModal from "../access/AccessFormModal";
 
+const money = (n) =>
+  `₱${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 export default function EmployeesPage() {
+  const { isAdmin } = useAuth();
   const { employees, accounts, branches, loading, error, usingMockData } =
     useAccountManagement();
-  const [showEmployeeForm, setShowEmployeeForm] = useState(false);
+  // null = closed, "new" = create mode, an employee object = edit mode.
+  const [formTarget, setFormTarget] = useState(null);
   const [accessTarget, setAccessTarget] = useState(null); // employee obj or null
 
   const branchName = (id) => branches.find((b) => b.id === id)?.name ?? id;
   const hasAccess = (employeeId) =>
     accounts.some((a) => a.employeeId === employeeId);
+
+  // Sidebar already hides this page for staff — this is the real gate,
+  // since the route itself was still reachable by typing the URL.
+  if (!isAdmin) {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 text-center">
+        <ShieldAlert size={28} className="mx-auto text-amber-500 mb-2" />
+        <p className="text-slate-600 font-medium">Admin or Manager access required.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
@@ -24,7 +41,7 @@ export default function EmployeesPage() {
           </p>
         </div>
         <button
-          onClick={() => setShowEmployeeForm(true)}
+          onClick={() => setFormTarget("new")}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg shadow-sm"
         >
           <Plus size={16} /> Add Employee
@@ -56,6 +73,7 @@ export default function EmployeesPage() {
                 <th className="text-left font-semibold py-3 px-3">Phone</th>
                 <th className="text-left font-semibold py-3 px-3">Role</th>
                 <th className="text-left font-semibold py-3 px-3">Branches</th>
+                <th className="text-left font-semibold py-3 px-3">Hourly Rate</th>
                 <th className="text-left font-semibold py-3 px-3">Access</th>
                 <th className="text-left font-semibold py-3 px-3 rounded-r-lg">Action</th>
               </tr>
@@ -82,6 +100,15 @@ export default function EmployeesPage() {
                     {(emp.branchIds || []).map(branchName).join(", ")}
                   </td>
                   <td className="py-3 px-3">
+                    {emp.hourlyRate != null ? (
+                      <span className="text-slate-700 font-medium">{money(emp.hourlyRate)}</span>
+                    ) : (
+                      <span className="inline-block text-xs font-semibold px-2 py-1 rounded-full bg-amber-50 text-amber-700">
+                        Not set
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-3 px-3">
                     {hasAccess(emp.id) ? (
                       <span className="inline-block text-xs font-semibold px-2 py-1 rounded-full bg-emerald-50 text-emerald-600">
                         Granted
@@ -93,12 +120,20 @@ export default function EmployeesPage() {
                     )}
                   </td>
                   <td className="py-3 px-3">
-                    <button
-                      onClick={() => setAccessTarget(emp)}
-                      className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100"
-                    >
-                      <KeyRound size={13} /> Grant Access
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setFormTarget(emp)}
+                        className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-slate-50 text-slate-600 hover:bg-slate-100"
+                      >
+                        <Pencil size={13} /> Edit
+                      </button>
+                      <button
+                        onClick={() => setAccessTarget(emp)}
+                        className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100"
+                      >
+                        <KeyRound size={13} /> Grant Access
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -108,9 +143,15 @@ export default function EmployeesPage() {
       </div>
 
       <EmployeeFormModal
-        open={showEmployeeForm}
-        onClose={() => setShowEmployeeForm(false)}
-        onCreated={(created) => setAccessTarget(created)} // prompt to grant access right after creating
+        open={!!formTarget}
+        employee={formTarget && formTarget !== "new" ? formTarget : null}
+        onClose={() => setFormTarget(null)}
+        onSaved={(saved, isEdit) => {
+          // Only prompt to grant access right after creating a brand-new
+          // employee — editing an existing one (e.g. just to set their
+          // hourly rate) shouldn't reopen that flow every time.
+          if (!isEdit) setAccessTarget(saved);
+        }}
       />
 
       <AccessFormModal

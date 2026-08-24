@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard,
   ShoppingBag,
   Boxes,
   ChevronRight,
@@ -11,32 +10,58 @@ import {
   ClipboardList,
   ShieldCheck,
   ChefHat,
+  Clock,
+  Wallet,
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 function buildNavSections(isAdmin) {
   const sections = [
-    { label: "Dashboard", icon: LayoutDashboard, to: "/" },
+    // Dashboard is parked for now — "/" redirects straight to Daily
+    // Closing Report (see App.jsx), so there's no page for this link to
+    // point to. Remove this comment and re-add the nav item if it comes back.
+    // Time Clock is a staff self-service feature (RequireClockIn and the
+    // Topbar badge both already treat it as STAFF-only) — admins/managers
+    // don't clock in, so there's no "today" record for this page to show.
+    ...(isAdmin ? [] : [{ label: "Time Clock", icon: Clock, to: "/time-clock" }]),
     { label: "Daily Closing Report", icon: ClipboardList, to: "/daily-closing-report" },
-    {
-      label: "Sales Management",
-      icon: ShoppingBag,
-      children: [{ label: "Sales History" }, { label: "Sales Reports" }],
-    },
-    {
-      label: "Inventory Management",
-      icon: Boxes,
-      children: [{ label: "Stock Levels" }, { label: "Container Types" }],
-    },
-    {
-      label: "Account Management",
-      icon: Users2,
-      children: [
-        { label: "Employees", to: "/employees" },
-        { label: "Access", to: "/access" },
-      ],
-    },
+    // Payroll is wage data an admin will check often, not a rarely-touched
+    // setup screen — so it sits up here with the daily-workflow items, not
+    // folded into the "Admin" group below the divider.
+    ...(isAdmin ? [{ label: "Payroll", icon: Wallet, to: "/payroll" }] : []),
+    // Sales Management / Inventory Management are placeholders — their
+    // children don't even have a `to` yet, so they're dead links. Hidden
+    // for staff for now; still visible for admins as a reminder they're
+    // unfinished. Restore unconditionally once they're actually built.
+    ...(isAdmin
+      ? [
+          {
+            label: "Sales Management",
+            icon: ShoppingBag,
+            children: [{ label: "Sales History" }, { label: "Sales Reports" }],
+          },
+          {
+            label: "Inventory Management",
+            icon: Boxes,
+            children: [{ label: "Stock Levels" }, { label: "Container Types" }],
+          },
+        ]
+      : []),
+    // Account Management (Employees/Access) is admin-only for now too —
+    // hidden for staff, same pattern as Sales/Inventory above.
+    ...(isAdmin
+      ? [
+          {
+            label: "Account Management",
+            icon: Users2,
+            children: [
+              { label: "Employees", to: "/employees" },
+              { label: "Access", to: "/access" },
+            ],
+          },
+        ]
+      : []),
   ];
 
   if (isAdmin) {
@@ -50,6 +75,7 @@ function buildNavSections(isAdmin) {
         { label: "Container Prices", to: "/admin/container-prices" },
         { label: "Daily Records", to: "/admin/daily-records" },
         { label: "Attendance", to: "/admin/attendance" },
+        { label: "Time Records", to: "/admin/time-records" },
       ],
     });
   }

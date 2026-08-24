@@ -30,11 +30,15 @@ function LockOverlay() {
 
 export default function DailyClosingReportPage() {
   const { employees, branches } = useAccountManagement();
-  const { employeeId: loggedInEmployeeId, branchIds: myBranchIds, isAdmin } = useAuth();
+  const { employeeId: loggedInEmployeeId, branchIds: myBranchIds, isAdmin, role } = useAuth();
+  // Staff enter their own shift only — Branch and Crew are auto-filled
+  // from their account and locked, not a free choice. Admins/managers
+  // still pick freely (they're the ones reconciling other people's shifts).
+  const isStaffLocked = role === "STAFF";
   const { today: attendanceToday } = useAttendance();
   const { salesReports, current: currentSalesReport, loadCurrent: loadSalesCurrent } = useSales();
   const { load: loadExpenses } = useExpenses();
-  const { current: cashSummary, load: loadCashSummary, closeShift, reopenShift } = useCashSummary();
+  const { current: cashSummary, load: loadCashSummary, loadPrevious: loadPreviousCashSummary, closeShift, reopenShift } = useCashSummary();
   const isShiftClosed = cashSummary?.closed || false;
   
 
@@ -88,50 +92,99 @@ export default function DailyClosingReportPage() {
   // Only auto-fills if unambiguous (exactly one branch) and nothing's
   // been manually picked yet.
   useEffect(() => {
-    if (myBranchIds.length === 1 && !branchId) {
+    if (!branchId && myBranchIds.length >= 1 && (isStaffLocked || myBranchIds.length === 1)) {
       setBranchId(String(myBranchIds[0]));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [myBranchIds]);
+  }, [myBranchIds, isStaffLocked]);
 
   // Crew should reflect whose shift this actually was — not whoever's
   // currently logged in — once a saved report exists for this date/branch.
   // Only fall back to the logged-in user for a brand-new (unsaved) entry.
+  //
+  // That's an admin-only convenience though: it was also firing for
+  // locked-in staff, so if the same branch already had a saved report from
+  // a different crew member on that date (e.g. an earlier shift), a staff
+  // account would get silently switched to that other person's name with
+  // no way to fix it (their Crew dropdown is disabled). Staff are always
+  // themselves, full stop — never inherit someone else's saved report.
   useEffect(() => {
-    if (currentSalesReport) {
+    if (isStaffLocked) {
+      setEmployeeId(loggedInEmployeeId ? String(loggedInEmployeeId) : "");
+    } else if (currentSalesReport) {
       setEmployeeId(String(currentSalesReport.employeeId));
     } else {
       setEmployeeId(loggedInEmployeeId ? String(loggedInEmployeeId) : "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSalesReport]);
+  }, [currentSalesReport, isStaffLocked, loggedInEmployeeId]);
 
   // Time In/Out: an existing saved report's own times win (that's the
   // actual record of what happened). For a brand-new entry, default from
   // the employee's real clock-in/out on the timesheet instead of leaving
   // it blank for manual re-entry — still editable afterward either way.
+  //
+  // attendanceToday is always the logged-in user's real, actual-today
+  // clock-in — it has no idea what `date` or `employeeId` is selected on
+  // this page. That's why times showed up "already set" no matter what
+  // date was picked: any backdated date (or any crew member other than
+  // whoever's clocked in right now) with no saved report yet was falling
+  // through to that same today-only record. Only use it when the date
+  // being edited actually IS today and the crew selected actually IS the
+  // person that attendance record belongs to — otherwise start blank.
   useEffect(() => {
     if (currentSalesReport) {
       setTimeIn(currentSalesReport.timeIn || "");
       setTimeOut(currentSalesReport.timeOut || "");
-    } else {
-      setTimeIn(attendanceToday?.timeIn ? attendanceToday.timeIn.slice(0, 5) : "");
-      setTimeOut(attendanceToday?.timeOut ? attendanceToday.timeOut.slice(0, 5) : "");
+      return;
     }
+
+    const matchesToday =
+      attendanceToday &&
+      date === todayISO() &&
+      String(attendanceToday.employeeId) === String(employeeId);
+
+    setTimeIn(matchesToday && attendanceToday.timeIn ? attendanceToday.timeIn.slice(0, 5) : "");
+    setTimeOut(matchesToday && attendanceToday.timeOut ? attendanceToday.timeOut.slice(0, 5) : "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSalesReport, attendanceToday]);
+  }, [currentSalesReport, attendanceToday, date, employeeId]);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (cashSummary) {
+      // Already saved for this date/branch — its own recorded value wins,
+      // same as everywhere else in this app (an existing record beats any
+      // auto-filled default).
       setPettyCashYesterday(String(cashSummary.pettyCashYesterday ?? ""));
       setGcash(String(cashSummary.gcash ?? ""));
       setPettyCashNextday(String(cashSummary.pettyCashNextday ?? ""));
+      return;
+    }
+
+    setGcash("");
+    setPettyCashNextday("");
+
+    // Brand-new entry — carry forward whatever float got set aside as
+    // "Starting Float" at the end of the most recent PRIOR shift for this
+    // branch (not necessarily literally yesterday — branches can skip a
+    // day). If there's no earlier shift at all for this branch, there's
+    // nothing to carry forward, so it falls back to blank/0 — that's not
+    // a special "day one" case, it's just "nothing found."
+    if (date && branchId) {
+      loadPreviousCashSummary(date, branchId).then((prev) => {
+        if (cancelled) return;
+        setPettyCashYesterday(prev?.pettyCashNextday != null ? String(prev.pettyCashNextday) : "");
+      });
     } else {
       setPettyCashYesterday("");
-      setGcash("");
-      setPettyCashNextday("");
     }
-  }, [cashSummary]);
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cashSummary, date, branchId]);
 
   const persistedSalesTotal = useMemo(
     () =>
@@ -193,7 +246,11 @@ export default function DailyClosingReportPage() {
               <select
                 value={branchId}
                 onChange={(e) => setBranchId(e.target.value)}
-                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#f2c2be] hover:border-[#e8a39c] transition-colors min-w-[150px]"
+                disabled={isStaffLocked}
+                title={isStaffLocked ? "Your branch — set automatically" : ""}
+                className={`h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#f2c2be] hover:border-[#e8a39c] transition-colors min-w-[150px] ${
+                  isStaffLocked ? "bg-slate-50 text-slate-500 cursor-not-allowed hover:border-slate-200" : ""
+                }`}
               >
                 <option value="">Select branch</option>
                 {branches.map((b) => (
@@ -210,7 +267,11 @@ export default function DailyClosingReportPage() {
               <select
                 value={employeeId}
                 onChange={(e) => setEmployeeId(e.target.value)}
-                className="h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#f2c2be] hover:border-[#e8a39c] transition-colors min-w-[150px]"
+                disabled={isStaffLocked}
+                title={isStaffLocked ? "You — set automatically" : ""}
+                className={`h-11 border border-slate-200 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#f2c2be] hover:border-[#e8a39c] transition-colors min-w-[150px] ${
+                  isStaffLocked ? "bg-slate-50 text-slate-500 cursor-not-allowed hover:border-slate-200" : ""
+                }`}
               >
                 <option value="">Select crew</option>
                 {employees.map((emp) => (
@@ -433,6 +494,7 @@ export default function DailyClosingReportPage() {
             timeOut={timeOut}
             branchId={branchId}
             pettyCashYesterday={pettyCashYesterday}
+            onPettyCashYesterdayChange={setPettyCashYesterday}
             gcash={gcash}
             onGcashChange={setGcash}
             pettyCashNextday={pettyCashNextday}

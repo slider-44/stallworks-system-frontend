@@ -24,6 +24,16 @@ export function CashSummaryProvider({ children }) {
     }
   }, []);
 
+  const loadPrevious = useCallback(async (date, branchId) => {
+    if (!date || !branchId) return null;
+    try {
+      return await CashSummaryAPI.previous(date, branchId);
+    } catch (err) {
+      console.warn("GET /v1/cash-summaries/previous failed:", err.message);
+      return null;
+    }
+  }, []);
+
   const save = useCallback(async (cashSummaryRequest) => {
     const saved = await CashSummaryAPI.save(cashSummaryRequest);
     setCurrent(saved);
@@ -42,7 +52,7 @@ export function CashSummaryProvider({ children }) {
     return updated;
   }, []);
 
-  const value = { current, loading, load, save, closeShift, reopenShift };
+  const value = { current, loading, load, loadPrevious, save, closeShift, reopenShift };
 
   return <CashSummaryContext.Provider value={value}>{children}</CashSummaryContext.Provider>;
 }
