@@ -59,6 +59,12 @@ export function AccountManagementProvider({ children }) {
     return created;
   }, []);
 
+  const updateEmployee = useCallback(async (id, employeeRequest) => {
+    const updated = await EmployeeAPI.update(id, employeeRequest);
+    setEmployees((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    return updated;
+  }, []);
+
   const addAccount = useCallback(async (accountRequest) => {
     const created = await AccountAPI.create(accountRequest);
     setAccounts((prev) => [...prev, created]);
@@ -74,6 +80,7 @@ export function AccountManagementProvider({ children }) {
     usingMockData,
     refresh: loadAll,
     addEmployee,
+    updateEmployee,
     addAccount,
   };
 

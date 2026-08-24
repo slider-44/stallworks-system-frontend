@@ -52,6 +52,7 @@ export default function ReconciliationPage({
   totalExpenses,
   gcash,
   actualCash,
+  pettyCashYesterday,
   pettyCashNextday,
   onBack,
   isShiftClosed,
@@ -61,6 +62,16 @@ export default function ReconciliationPage({
   const cashDrawerCount = Number(actualCash || 0);
   const gcashCollected = Number(gcash || 0);
   const nextShiftFloat = Number(pettyCashNextday || 0);
+  // The float carried IN at the start of this shift — the only thing that
+  // can legitimately explain the drawer holding more cash than today's
+  // sales alone would produce. NOT nextShiftFloat (money being set aside
+  // to LEAVE for tomorrow) — that's a different number that just happens
+  // to usually match it day-to-day, which is why using the wrong one here
+  // went unnoticed: a shift with no incoming float (a branch's first day,
+  // or a float that didn't actually make it into the drawer) has nothing
+  // to explain a surplus with, and swapping in nextShiftFloat instead
+  // manufactured a false discrepancy in exactly that case.
+  const incomingFloat = Number(pettyCashYesterday || 0);
   const actualReceived = cashDrawerCount + gcashCollected;
   // Cash to Hand Over = drawer count minus the float being kept aside for
   // tomorrow's shift — that float physically stays in the drawer, so it
@@ -86,12 +97,19 @@ export default function ReconciliationPage({
   const rawStatusConfig = STATUS_CONFIG[rawStatus];
   const rawIsBalanced = rawStatus === "BALANCED";
 
-  // Reconciliation Summary + closing logic — float-adjusted, since the
-  // float sitting in the drawer isn't a real discrepancy. This is the
-  // number that actually decides whether a note is required and what
-  // gets saved when the shift is closed.
-  const expectedCash = totalSales - totalExpenses + nextShiftFloat;
-  const difference = expectedCash - actualReceived;
+  // Reconciliation Summary + closing logic — this is the REMITTANCE check,
+  // not a second collection check (Step 1 already does that). Verifies
+  // what's actually going to the owner (drawer + gcash, minus the float
+  // being kept back) against what should be remitted once that same float
+  // is set aside. nextShiftFloat cancels out of the difference itself —
+  // subtracting it from both sides can't change whether a shift is
+  // Balanced/Over/Short, it only makes the two headline numbers mean
+  // "amount to remit" instead of duplicating Step 1's "amount collected".
+  // This is the number that actually decides whether a note is required
+  // and what gets saved when the shift is closed.
+  const expectedToRemit = totalSales - totalExpenses + incomingFloat - nextShiftFloat;
+  const actualRemitted = actualReceived - nextShiftFloat;
+  const difference = expectedToRemit - actualRemitted;
   const status = statusFromDifference(difference);
   const statusConfig = STATUS_CONFIG[status];
   const StatusIcon = statusConfig.icon;
@@ -289,16 +307,16 @@ export default function ReconciliationPage({
           <ShieldCheck size={18} className="text-[#8f1d1d]" />
           <div>
             <p className="text-sm font-bold text-[#8f1d1d]">Reconciliation Summary</p>
-            <p className="text-xs text-slate-400">Final review before you end the shift.</p>
+            <p className="text-xs text-slate-400">Final remittance check before you end the shift.</p>
           </div>
         </div>
         <div>
-          <p className="text-xs text-slate-500">Expected Cash</p>
-          <p className="text-sm font-bold text-slate-900">{money(expectedCash)}</p>
+          <p className="text-xs text-slate-500">Expected to Remit</p>
+          <p className="text-sm font-bold text-slate-900">{money(expectedToRemit)}</p>
         </div>
         <div>
-          <p className="text-xs text-slate-500">Actual Cash Counted</p>
-          <p className="text-sm font-bold text-slate-900">{money(actualReceived)}</p>
+          <p className="text-xs text-slate-500">Actual Remitted</p>
+          <p className="text-sm font-bold text-slate-900">{money(actualRemitted)}</p>
         </div>
         <div>
           <p className="text-xs text-slate-500">Difference</p>

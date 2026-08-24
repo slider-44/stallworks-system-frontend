@@ -76,6 +76,11 @@ export const EmployeeAPI = {
       method: "POST",
       body: JSON.stringify(employeeRequest),
     }),
+  update: (id, employeeRequest) =>
+    request(`/employees/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(employeeRequest),
+    }),
 };
 
 // ---- Accounts (auth-service) --------------------------------------------
@@ -223,6 +228,23 @@ export const AttendanceAPI = {
   deleteRecord: (id) => request(`/attendance/${id}`, { method: "DELETE" }),
 };
 
+// ---- Payroll (core-services) --------------------------------------------
+// Everything here is computed on-demand from Attendance + Employee.hourlyRate
+// on the backend — nothing is persisted separately, so there's no separate
+// payroll table that can drift out of sync with the actual clock records.
+export const PayrollAPI = {
+  // month: "YYYY-MM". branchId omitted = All Branches.
+  monthly: (month, branchId) => {
+    const qs = new URLSearchParams({
+      month,
+      ...(branchId ? { branchId } : {}),
+    }).toString();
+    return request(`/payroll/monthly?${qs}`);
+  },
+  monthlyDetail: (employeeId, month) =>
+    request(`/payroll/monthly/${employeeId}?month=${month}`),
+};
+
 // ---- Cash Summary (core-services) --------------------------------------
 // Maps to CashSummaryRequest: { date, branchId, pettyCashYesterday, gcash,
 // pettyCashNextday, billCounts: [{ denomination, count }] }
@@ -233,6 +255,15 @@ export const CashSummaryAPI = {
   get: (date, branchId) =>
     request(`/cash-summaries?date=${date}&branchId=${branchId}`).catch((err) => {
       // 404 just means "nothing saved yet for this date/branch" — not a real error.
+      if (err.message.includes("404") || err.message.toLowerCase().includes("not found")) return null;
+      throw err;
+    }),
+  // Most recent PRIOR cash summary for this branch (any date before the
+  // one given) — used to carry the previous shift's "Starting Float" into
+  // today's "Petty Cash Yesterday". 404 just means there's no earlier
+  // shift for this branch at all (e.g. its very first day) — not an error.
+  previous: (date, branchId) =>
+    request(`/cash-summaries/previous?date=${date}&branchId=${branchId}`).catch((err) => {
       if (err.message.includes("404") || err.message.toLowerCase().includes("not found")) return null;
       throw err;
     }),

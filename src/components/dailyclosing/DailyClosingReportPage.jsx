@@ -38,7 +38,7 @@ export default function DailyClosingReportPage() {
   const { today: attendanceToday } = useAttendance();
   const { salesReports, current: currentSalesReport, loadCurrent: loadSalesCurrent } = useSales();
   const { load: loadExpenses } = useExpenses();
-  const { current: cashSummary, load: loadCashSummary, closeShift, reopenShift } = useCashSummary();
+  const { current: cashSummary, load: loadCashSummary, loadPrevious: loadPreviousCashSummary, closeShift, reopenShift } = useCashSummary();
   const isShiftClosed = cashSummary?.closed || false;
   
 
@@ -150,16 +150,41 @@ export default function DailyClosingReportPage() {
   }, [currentSalesReport, attendanceToday, date, employeeId]);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (cashSummary) {
+      // Already saved for this date/branch — its own recorded value wins,
+      // same as everywhere else in this app (an existing record beats any
+      // auto-filled default).
       setPettyCashYesterday(String(cashSummary.pettyCashYesterday ?? ""));
       setGcash(String(cashSummary.gcash ?? ""));
       setPettyCashNextday(String(cashSummary.pettyCashNextday ?? ""));
+      return;
+    }
+
+    setGcash("");
+    setPettyCashNextday("");
+
+    // Brand-new entry — carry forward whatever float got set aside as
+    // "Starting Float" at the end of the most recent PRIOR shift for this
+    // branch (not necessarily literally yesterday — branches can skip a
+    // day). If there's no earlier shift at all for this branch, there's
+    // nothing to carry forward, so it falls back to blank/0 — that's not
+    // a special "day one" case, it's just "nothing found."
+    if (date && branchId) {
+      loadPreviousCashSummary(date, branchId).then((prev) => {
+        if (cancelled) return;
+        setPettyCashYesterday(prev?.pettyCashNextday != null ? String(prev.pettyCashNextday) : "");
+      });
     } else {
       setPettyCashYesterday("");
-      setGcash("");
-      setPettyCashNextday("");
     }
-  }, [cashSummary]);
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cashSummary, date, branchId]);
 
   const persistedSalesTotal = useMemo(
     () =>
@@ -469,6 +494,7 @@ export default function DailyClosingReportPage() {
             timeOut={timeOut}
             branchId={branchId}
             pettyCashYesterday={pettyCashYesterday}
+            onPettyCashYesterdayChange={setPettyCashYesterday}
             gcash={gcash}
             onGcashChange={setGcash}
             pettyCashNextday={pettyCashNextday}
@@ -494,6 +520,7 @@ export default function DailyClosingReportPage() {
           totalExpenses={totalExpenses}
           gcash={gcash}
           actualCash={actualCash}
+          pettyCashYesterday={pettyCashYesterday}
           pettyCashNextday={pettyCashNextday}
           onBack={() => setActiveView("cashcount")}
           isShiftClosed={isShiftClosed}
