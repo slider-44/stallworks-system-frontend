@@ -98,6 +98,7 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
     timeOut,
     branchId,
     pettyCashYesterday,
+    onPettyCashYesterdayChange,
     gcash,
     onGcashChange,
     pettyCashNextday,
@@ -124,6 +125,12 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
   const [pettyCashInput, setPettyCashInput] = useState("");
   const [gcashModalOpen, setGcashModalOpen] = useState(false);
   const [gcashInput, setGcashInput] = useState("");
+  // Petty Cash Yesterday auto-fills from the previous shift's Starting
+  // Float (see DailyClosingReportPage's carry-forward effect), but stays
+  // editable here in case the actual amount physically in the drawer
+  // differs from what got recorded.
+  const [pettyCashYesterdayModalOpen, setPettyCashYesterdayModalOpen] = useState(false);
+  const [pettyCashYesterdayInput, setPettyCashYesterdayInput] = useState("");
 
   useEffect(() => {
     if (current) {
@@ -181,6 +188,19 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
   const clearPettyCash = () => {
     onPettyCashNextdayChange("");
     setPettyCashModalOpen(false);
+  };
+
+  const openPettyCashYesterdayModal = () => {
+    setPettyCashYesterdayInput(pettyCashYesterday ? String(pettyCashYesterday) : "");
+    setPettyCashYesterdayModalOpen(true);
+  };
+  const confirmPettyCashYesterday = () => {
+    onPettyCashYesterdayChange(pettyCashYesterdayInput);
+    setPettyCashYesterdayModalOpen(false);
+  };
+  const clearPettyCashYesterday = () => {
+    onPettyCashYesterdayChange("");
+    setPettyCashYesterdayModalOpen(false);
   };
 
   const openGcashModal = () => {
@@ -275,12 +295,36 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
           <div className="border border-slate-100 rounded-xl divide-y divide-slate-100">
             <div className="flex items-center justify-between p-3.5">
               <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+                  <Wallet size={15} className="text-orange-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-900 truncate">Petty Cash Yesterday</p>
+                  <p className="text-xs text-slate-400 truncate">
+                    Carried over from the last shift's float — edit if it doesn't match the drawer
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-sm font-bold text-slate-900 whitespace-nowrap">{money(pettyCashYesterday)}</span>
+                <button
+                  type="button"
+                  onClick={openPettyCashYesterdayModal}
+                  className="flex items-center gap-1 text-xs font-semibold text-[#8f1d1d] border border-[#f2c2be] rounded-full px-3 py-1 hover:bg-[#fff8f6] whitespace-nowrap"
+                >
+                  <Pencil size={11} /> Edit
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-3.5">
+              <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
                   <Wallet size={15} className="text-amber-600" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-slate-900 truncate">Petty Cash (Starting Float)</p>
-                  <p className="text-xs text-slate-400 truncate">Starting float amount</p>
+                  <p className="text-xs text-slate-400 truncate">For tomorrow's shift</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
@@ -424,6 +468,51 @@ const CashCountTabContent = forwardRef(function CashCountTabContent(
               </button>
               <button
                 onClick={confirmPettyCash}
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-[#8f1d1d] text-white hover:bg-[#7a1414]"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={pettyCashYesterdayModalOpen}
+        onClose={() => setPettyCashYesterdayModalOpen(false)}
+        title="Petty Cash Yesterday"
+      >
+        <div className="py-1">
+          <label className="text-xs font-semibold text-orange-600">Amount (₱)</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={pettyCashYesterdayInput}
+            onChange={(e) => setPettyCashYesterdayInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && confirmPettyCashYesterday()}
+            onWheel={(e) => e.target.blur()}
+            onFocus={(e) => e.target.select()}
+            placeholder="0.00"
+            autoFocus
+            className="no-spinner w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"
+          />
+          <div className="flex items-center justify-between mt-5">
+            <button
+              onClick={clearPettyCashYesterday}
+              className="flex items-center gap-1.5 text-sm font-semibold text-red-600 hover:underline"
+            >
+              <Trash2 size={13} /> Clear
+            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setPettyCashYesterdayModalOpen(false)}
+                className="px-4 py-2 text-sm font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmPettyCashYesterday}
                 className="px-4 py-2 text-sm font-semibold rounded-lg bg-[#8f1d1d] text-white hover:bg-[#7a1414]"
               >
                 Save

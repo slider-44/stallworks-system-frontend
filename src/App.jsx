@@ -20,6 +20,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { AttendanceProvider } from "./context/AttendanceContext";
 import AdminAttendancePage from "./components/admin/AdminAttendancePage";
 import AdminTimeRecordsPage from "./components/admin/AdminTimeRecordsPage";
+import PayrollPage from "./components/payroll/PayrollPage";
 
 // Sales, Expenses, and Cash Count are consolidated into one page again —
 // Daily Closing Report — with tabs + a sticky live summary sidebar.
@@ -70,6 +71,7 @@ export default function App() {
                             <Route path="admin/daily-records" element={<DailyRecordsAdminPage />} />
                             <Route path="admin/attendance" element={<AdminAttendancePage />} />
                             <Route path="admin/time-records" element={<AdminTimeRecordsPage />} />
+                            <Route path="payroll" element={<PayrollPage />} />
                           </Route>
                         </Route>
                       </Route>

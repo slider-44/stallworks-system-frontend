@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   ChefHat,
   Clock,
+  Wallet,
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -25,6 +26,10 @@ function buildNavSections(isAdmin) {
     // don't clock in, so there's no "today" record for this page to show.
     ...(isAdmin ? [] : [{ label: "Time Clock", icon: Clock, to: "/time-clock" }]),
     { label: "Daily Closing Report", icon: ClipboardList, to: "/daily-closing-report" },
+    // Payroll is wage data an admin will check often, not a rarely-touched
+    // setup screen — so it sits up here with the daily-workflow items, not
+    // folded into the "Admin" group below the divider.
+    ...(isAdmin ? [{ label: "Payroll", icon: Wallet, to: "/payroll" }] : []),
     // Sales Management / Inventory Management are placeholders — their
     // children don't even have a `to` yet, so they're dead links. Hidden
     // for staff for now; still visible for admins as a reminder they're
