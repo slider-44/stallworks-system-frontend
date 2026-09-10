@@ -37,7 +37,7 @@ export default function DailyClosingReportPage() {
   const isStaffLocked = role === "STAFF";
   const { today: attendanceToday } = useAttendance();
   const { salesReports, current: currentSalesReport, loadCurrent: loadSalesCurrent } = useSales();
-  const { load: loadExpenses } = useExpenses();
+  const { expenses, load: loadExpenses } = useExpenses();
   const { current: cashSummary, load: loadCashSummary, loadPrevious: loadPreviousCashSummary, closeShift, reopenShift } = useCashSummary();
   const isShiftClosed = cashSummary?.closed || false;
   
@@ -66,6 +66,13 @@ export default function DailyClosingReportPage() {
 
   const [salesSaved, setSalesSaved] = useState(false);
   const [expensesSaved, setExpensesSaved] = useState(false);
+  // "Saved" for this page means either: saved just now in this visit
+  // (the boolean flags above), OR already saved from an earlier visit —
+  // which shows up as data already loaded for this date/branch. Without
+  // this OR, reopening an already-completed day looks "unsaved" until you
+  // click Save again, even though there's nothing new to save.
+  const effectiveSalesSaved = salesSaved || !!currentSalesReport;
+  const effectiveExpensesSaved = expensesSaved || expenses.length > 0;
   const [cashCountSaved, setCashCountSaved] = useState(false);
   const [footerSaving, setFooterSaving] = useState(false);
   const [footerSaveSuccess, setFooterSaveSuccess] = useState(false);
@@ -325,7 +332,7 @@ export default function DailyClosingReportPage() {
         </button>
         <div className="w-10 h-px bg-slate-200" />
         <button
-          onClick={() => (salesSaved && expensesSaved ? setActiveView("cashcount") : null)}
+          onClick={() => (effectiveSalesSaved && effectiveExpensesSaved ? setActiveView("cashcount") : null)}
           className="flex items-center gap-2"
         >
           <span
@@ -468,8 +475,8 @@ export default function DailyClosingReportPage() {
               </button>
               <button
                 onClick={() => setActiveView("cashcount")}
-                disabled={!(salesSaved && expensesSaved)}
-                title={!(salesSaved && expensesSaved) ? "Save Sales and Expenses first" : ""}
+                disabled={!(effectiveSalesSaved && effectiveExpensesSaved)}
+                title={!(effectiveSalesSaved && effectiveExpensesSaved) ? "Save Sales and Expenses first" : ""}
                 className="flex items-center gap-2 bg-[#8f1d1d] hover:bg-[#7a1414] text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#8f1d1d]"
               >
                 Continue to Cash Count <ArrowRight size={15} />
@@ -477,7 +484,7 @@ export default function DailyClosingReportPage() {
             </div>
             <p className="flex items-center gap-1 text-xs text-slate-400">
               <ShieldCheck size={12} />
-              {salesSaved && expensesSaved ? "Saved — ready to continue" : "Save Sales and Expenses to continue"}
+              {effectiveSalesSaved && effectiveExpensesSaved ? "Saved — ready to continue" : "Save Sales and Expenses to continue"}
             </p>
           </div>
         </div>

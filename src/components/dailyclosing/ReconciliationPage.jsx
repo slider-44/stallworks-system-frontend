@@ -219,7 +219,9 @@ export default function ReconciliationPage({
           <p className={`text-sm ${rawStatusConfig.text}`}>
             {rawIsBalanced
               ? "Great! Your cash count matches the expected amount."
-              : "Your cash count doesn't match the expected amount exactly — this is expected if there's a starting float still in the drawer. See Reconciliation Summary below for the final balance."}
+              : incomingFloat > 0
+              ? `${money(incomingFloat)} of this is expected — that's the starting float carried over from yesterday, already sitting in the drawer. See Reconciliation Summary below for the final balance.`
+              : "Your cash count doesn't match the expected amount exactly — see Reconciliation Summary below for the final balance."}
           </p>
         </div>
       </div>

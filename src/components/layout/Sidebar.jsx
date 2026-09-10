@@ -12,6 +12,8 @@ import {
   ChefHat,
   Clock,
   Wallet,
+  Package,
+  PieChart,
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -30,6 +32,13 @@ function buildNavSections(isAdmin) {
     // setup screen — so it sits up here with the daily-workflow items, not
     // folded into the "Admin" group below the divider.
     ...(isAdmin ? [{ label: "Payroll", icon: Wallet, to: "/payroll" }] : []),
+    // Purchase Orders (ingredient/stock restocks) can happen any day, not
+    // just during a shift close — open to everyone logged in, same as
+    // Expenses used to be, not gated behind isAdmin.
+    { label: "Purchase Orders", icon: Package, to: "/purchase-orders" },
+    // Monthly Summary rolls up Sales/Purchase Orders/Expenses/Payroll into
+    // Net Profit — financial data, admin-only like Payroll.
+    ...(isAdmin ? [{ label: "Monthly Summary", icon: PieChart, to: "/reports/monthly-summary" }] : []),
     // Sales Management / Inventory Management are placeholders — their
     // children don't even have a `to` yet, so they're dead links. Hidden
     // for staff for now; still visible for admins as a reminder they're

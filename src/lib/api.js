@@ -295,6 +295,47 @@ export const CashSummaryAPI = {
     }),
 };
 
+// ---- Purchase Orders (core-services, cost of ingredients/stock) --------
+// Maps to PurchaseOrderRequest:
+// { branchId, date, itemName, quantity?, unit?, totalCost, actorEmployeeId }
+// Feeds Cost of Goods in the Monthly Summary report.
+export const PurchaseOrderAPI = {
+  list: (date, branchId) => request(`/purchase-orders?date=${date}&branchId=${branchId}`),
+  listForMonth: (month, branchId) => {
+    const qs = branchId ? `?month=${month}&branchId=${branchId}` : `?month=${month}`;
+    return request(`/purchase-orders/monthly${qs}`);
+  },
+  // One record per request — unlike Expenses, this is never staged/batched
+  // in the UI, so there's no batch wrapper on the wire.
+  create: (purchaseOrderRequest) =>
+    request("/purchase-orders", {
+      method: "POST",
+      body: JSON.stringify(purchaseOrderRequest),
+    }),
+  update: (id, purchaseOrderRequest) =>
+    request(`/purchase-orders/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(purchaseOrderRequest),
+    }),
+  remove: (id) => request(`/purchase-orders/${id}`, { method: "DELETE" }),
+};
+
+// ---- Reports (core-services) --------------------------------------------
+// Monthly Sales − Cost of Goods (Purchase Orders) − Expenses − Salary
+// (Payroll) = Net Profit. Cash/GCash Remitted are included informationally
+// only — not part of the net profit math.
+export const ReportsAPI = {
+  monthlySummary: (month, branchId) => {
+    const qs = branchId ? `?month=${month}&branchId=${branchId}` : `?month=${month}`;
+    return request(`/reports/monthly-summary${qs}`);
+  },
+
+  dailyBreakdown: (month, branchId) => {
+  const qs = branchId ? `?month=${month}&branchId=${branchId}` : `?month=${month}`;
+  return request(`/reports/monthly-summary/daily${qs}`);
+},
+};
+
 // ---- Sales Reports (core-services) --------------------------------------
 // Maps to SalesReportRequest:
 // { employeeId, branchId, date, timeIn, timeOut, lineItems: [{ containerSize, quantitySold, manualUnitPrice? }] }
