@@ -153,6 +153,11 @@ const SalesTabContent = forwardRef(function SalesTabContent(
   const validate = () => {
     const errs = {};
     if (!date || !branchId || !employeeId) errs.header = "Set date, branch, and crew above first";
+    // Staff get this auto-filled from their clock-in record. Admins don't
+    // clock in, so there's nothing to auto-fill it from — it has to be
+    // entered by hand here, and until now nothing caught a blank one
+    // before it hit the backend as a raw validation error.
+    else if (!timeIn) errs.header = "Enter a Time In above before saving.";
     return errs;
   };
 
