@@ -448,11 +448,11 @@ export default function DailyClosingReportPage() {
               <Wallet size={16} className="text-amber-700" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-500">Expected Cash</p>
+              <p className="text-xs font-semibold text-slate-500">Net Sales</p>
               <p className="text-lg font-bold text-amber-700">
                 ₱{(totalSales - totalExpenses).toFixed(2)}
               </p>
-              <p className="text-xs text-slate-400">Gross Sales − Expenses</p>
+              <p className="text-xs text-slate-400">Sales − Expenses</p>
             </div>
           </div>
 
