@@ -172,13 +172,13 @@ useEffect(() => {
             </div>
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Cost of Goods</p>
-              <p className="text-xs text-slate-400 mt-0.5">Purchase Orders</p>
-              <p className="text-2xl font-extrabold text-red-600 mt-2">− {money(summary.totalPurchaseOrders)}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Purchase Orders + COGS Expenses</p>
+              <p className="text-2xl font-extrabold text-red-600 mt-2">− {money(summary.costOfGoods)}</p>
             </div>
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Expenses</p>
-              <p className="text-xs text-slate-400 mt-0.5">Operating costs</p>
-              <p className="text-2xl font-extrabold text-red-600 mt-2">− {money(summary.totalExpenses)}</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Overhead</p>
+              <p className="text-xs text-slate-400 mt-0.5">Rent, utilities, etc.</p>
+              <p className="text-2xl font-extrabold text-red-600 mt-2">− {money(summary.overheadExpenses)}</p>
             </div>
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Salary</p>
