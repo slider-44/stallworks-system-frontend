@@ -4,12 +4,13 @@ import { EmployeeAPI, AccountAPI, BranchAPI } from "../lib/api";
 // TODO: replace with your real Role enum values from the backend.
 export const ROLE_OPTIONS = ["ADMIN", "MANAGER", "STAFF", "CASHIER"];
 
-// Fallback mock data so the UI is usable before the backend is wired up.
+// Fallback only — shown if GET /v1/branches fails (backend down, no auth
+// token yet, etc.), so the UI isn't just blank. Kept in sync with the real
+// branches from R__seed_initial_data.sql so a fallback doesn't show
+// obviously-wrong names if it ever does kick in.
 const MOCK_BRANCHES = [
-  { id: 1, name: "Downtown" },
-  { id: 2, name: "Uptown" },
-  { id: 3, name: "Airport" },
-  { id: 4, name: "Mall" },
+  { id: 1, name: "San Agustin" },
+  { id: 2, name: "Ever Green" },
 ];
 
 const AccountManagementContext = createContext(null);
@@ -28,6 +29,7 @@ export function AccountManagementProvider({ children }) {
     // Each list call fails independently — e.g. GET /v1/employees might not
     // exist yet even though POST does. A missing list endpoint shouldn't be
     // treated as "backend unreachable" or block anything else from loading.
+    let branchesFellBack = false;
     const [employeesRes, accountsRes, branchesRes] = await Promise.all([
       EmployeeAPI.list().catch((err) => {
         console.warn("GET /v1/employees not available yet:", err.message);
@@ -37,11 +39,17 @@ export function AccountManagementProvider({ children }) {
         console.warn("GET /v1/accounts not available yet:", err.message);
         return [];
       }),
-      BranchAPI.list().catch(() => MOCK_BRANCHES),
+      BranchAPI.list().catch((err) => {
+        console.warn("GET /v1/branches failed — falling back to placeholder branches:", err.message);
+        branchesFellBack = true;
+        return MOCK_BRANCHES;
+      }),
     ]);
     setEmployees(employeesRes || []);
     setAccounts(accountsRes || []);
     setBranches(branchesRes || MOCK_BRANCHES);
+    setUsingMockData(branchesFellBack);
+    if (branchesFellBack) setError("Couldn't load branches from the backend");
     setLoading(false);
   }, []);
 

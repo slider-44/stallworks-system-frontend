@@ -21,6 +21,11 @@ import { AttendanceProvider } from "./context/AttendanceContext";
 import AdminAttendancePage from "./components/admin/AdminAttendancePage";
 import AdminTimeRecordsPage from "./components/admin/AdminTimeRecordsPage";
 import PayrollPage from "./components/payroll/PayrollPage";
+import PurchaseOrdersPage from "./components/purchaseorders/PurchaseOrdersPage";
+import MonthlySummaryPage from "./components/reports/MonthlySummaryPage";
+import { PurchaseOrderProvider } from "./context/PurchaseOrderContext";
+import OverheadExpensesPage from "./components/overhead/OverheadExpensesPage";
+import { OverheadExpenseProvider } from "./context/OverheadExpenseContext";
 
 // Sales, Expenses, and Cash Count are consolidated into one page again —
 // Daily Closing Report — with tabs + a sticky live summary sidebar.
@@ -49,6 +54,8 @@ export default function App() {
               <SalesProvider>
                 <ExpenseProvider>
                   <CashSummaryProvider>
+                    <PurchaseOrderProvider>
+                        <OverheadExpenseProvider>
                     <Routes>
                       <Route path="/login" element={<LoginPage />} />
                       <Route element={<RequireAuth />}>
@@ -72,10 +79,15 @@ export default function App() {
                             <Route path="admin/attendance" element={<AdminAttendancePage />} />
                             <Route path="admin/time-records" element={<AdminTimeRecordsPage />} />
                             <Route path="payroll" element={<PayrollPage />} />
+                            <Route path="purchase-orders" element={<PurchaseOrdersPage />} />
+                            <Route path="overhead-expenses" element={<OverheadExpensesPage />} />
+                            <Route path="reports/monthly-summary" element={<MonthlySummaryPage />} />
                           </Route>
                         </Route>
                       </Route>
                     </Routes>
+                     </OverheadExpenseProvider>
+                    </PurchaseOrderProvider>
                   </CashSummaryProvider>
                 </ExpenseProvider>
               </SalesProvider>
