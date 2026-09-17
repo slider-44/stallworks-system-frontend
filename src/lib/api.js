@@ -320,6 +320,29 @@ export const PurchaseOrderAPI = {
   remove: (id) => request(`/purchase-orders/${id}`, { method: "DELETE" }),
 };
 
+// ---- Overhead Expenses (core-services) -----------------------------------
+// Rent, electricity, water, and other costs that aren't tied to a specific
+// shift and don't scale with sales volume. Separate from the per-shift
+// Expenses tab (COGS-tagged items like Oil) — feeds the "Overhead" figure
+// in the Monthly Summary report, not Cost of Goods.
+export const OverheadExpenseAPI = {
+  listForMonth: (month, branchId) => {
+    const qs = branchId ? `?month=${month}&branchId=${branchId}` : `?month=${month}`;
+    return request(`/overhead-expenses/monthly${qs}`);
+  },
+  create: (overheadExpenseRequest) =>
+    request("/overhead-expenses", {
+      method: "POST",
+      body: JSON.stringify(overheadExpenseRequest),
+    }),
+  update: (id, overheadExpenseRequest) =>
+    request(`/overhead-expenses/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(overheadExpenseRequest),
+    }),
+  remove: (id) => request(`/overhead-expenses/${id}`, { method: "DELETE" }),
+};
+
 // ---- Reports (core-services) --------------------------------------------
 // Monthly Sales − Cost of Goods (Purchase Orders) − Expenses − Salary
 // (Payroll) = Net Profit. Cash/GCash Remitted are included informationally

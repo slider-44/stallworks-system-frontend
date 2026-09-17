@@ -14,6 +14,7 @@ import {
   Wallet,
   Package,
   PieChart,
+   Zap,
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -38,6 +39,7 @@ function buildNavSections(isAdmin) {
     { label: "Purchase Orders", icon: Package, to: "/purchase-orders" },
     // Monthly Summary rolls up Sales/Purchase Orders/Expenses/Payroll into
     // Net Profit — financial data, admin-only like Payroll.
+    ...(isAdmin ? [{ label: "Overhead Expenses", icon: Zap, to: "/overhead-expenses" }] : []),
     ...(isAdmin ? [{ label: "Monthly Summary", icon: PieChart, to: "/reports/monthly-summary" }] : []),
     // Sales Management / Inventory Management are placeholders — their
     // children don't even have a `to` yet, so they're dead links. Hidden
