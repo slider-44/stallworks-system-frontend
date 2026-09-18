@@ -245,6 +245,27 @@ export const PayrollAPI = {
     request(`/payroll/monthly/${employeeId}?month=${month}`),
 };
 
+// ---- Salary Advances (core-services) -------------------------------------
+// Cash given to an employee mid-shift, out of the drawer, ahead of their
+// actual pay. Entered alongside Sales/Expenses in Daily Closing Report
+// (same-day, same-branch cash event) — deducted from Payroll's net pay,
+// and subtracted from expected cash in Reconciliation, but NOT treated as
+// an expense (it's a receivable against future wages, not a cost).
+export const SalaryAdvanceAPI = {
+  list: (date, branchId) => request(`/salary-advances?date=${date}&branchId=${branchId}`),
+  create: (salaryAdvanceRequest) =>
+    request("/salary-advances", {
+      method: "POST",
+      body: JSON.stringify(salaryAdvanceRequest),
+    }),
+  update: (id, salaryAdvanceRequest) =>
+    request(`/salary-advances/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(salaryAdvanceRequest),
+    }),
+  remove: (id) => request(`/salary-advances/${id}`, { method: "DELETE" }),
+};
+
 // ---- Cash Summary (core-services) --------------------------------------
 // Maps to CashSummaryRequest: { date, branchId, pettyCashYesterday, gcash,
 // pettyCashNextday, billCounts: [{ denomination, count }] }

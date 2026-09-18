@@ -8,7 +8,7 @@ import { useExpenses } from "../../context/ExpenseContext";
 import { useCashSummary } from "../../context/CashSummaryContext";
 import SalesTabContent from "./SalesTabContent";
 import CashCountTabContent from "./CashCountTabContent";
-import ExpensesTab from "../sales/ExpensesTab";
+import CashOutTab from "../sales/CashOutTab";
 import ReconciliationPage from "./ReconciliationPage";
 import Toast from "../ui/Toast";
 import { todayISO } from "../../lib/dateUtils";
@@ -58,6 +58,7 @@ export default function DailyClosingReportPage() {
   const [actualCash, setActualCash] = useState(0);
   const [liveSalesTotal, setLiveSalesTotal] = useState(0);
   const [liveExpensesTotal, setLiveExpensesTotal] = useState(0);
+  const [liveAdvancesTotal, setLiveAdvancesTotal] = useState(0);
 
 
   const salesTabRef = useRef(null);
@@ -208,6 +209,11 @@ export default function DailyClosingReportPage() {
   // sitting in ExpensesTab's own local state, so no separate calc is
   // needed here (see ExpensesTab.jsx).
   const totalExpenses = liveExpensesTotal;
+
+  // Fed live by AdvancesTab. Not an Expense, doesn't touch Net Sales/Net
+  // Profit math anywhere — only matters for cash-drawer reconciliation,
+  // since cash handed out as an advance still leaves the drawer.
+  const totalAdvances = liveAdvancesTotal;
 
   const employeeName = useMemo(() => {
     const emp = employees.find((e) => String(e.id) === String(employeeId));
@@ -388,7 +394,7 @@ export default function DailyClosingReportPage() {
         )}
       </div>
 
-      {/* Sales + Expenses side by side */}
+      {/* Sales + Cash Out (Expenses & Advances folded together) side by side */}
       <div style={{ display: activeView === "main" ? "grid" : "none" }} className="grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="relative bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           {isShiftClosed && <LockOverlay />}
@@ -405,12 +411,14 @@ export default function DailyClosingReportPage() {
         </div>
         <div className="relative bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           {isShiftClosed && <LockOverlay />}
-          <ExpensesTab
-            ref={expensesTabRef}
+          <CashOutTab
+            expensesTabRef={expensesTabRef}
             date={date}
             branchId={branchId}
-            onLiveTotalChange={setLiveExpensesTotal}
-            onSaved={() => setExpensesSaved(true)}
+            recordedByEmployeeId={loggedInEmployeeId}
+            onExpensesLiveTotalChange={setLiveExpensesTotal}
+            onExpensesSaved={() => setExpensesSaved(true)}
+            onAdvancesLiveTotalChange={setLiveAdvancesTotal}
           />
         </div>
       </div>
@@ -525,6 +533,7 @@ export default function DailyClosingReportPage() {
           employeeName={employeeName}
           totalSales={totalSales}
           totalExpenses={totalExpenses}
+          totalAdvances={totalAdvances}
           gcash={gcash}
           actualCash={actualCash}
           pettyCashYesterday={pettyCashYesterday}
