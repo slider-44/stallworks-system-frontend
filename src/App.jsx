@@ -26,6 +26,7 @@ import MonthlySummaryPage from "./components/reports/MonthlySummaryPage";
 import { PurchaseOrderProvider } from "./context/PurchaseOrderContext";
 import OverheadExpensesPage from "./components/overhead/OverheadExpensesPage";
 import { OverheadExpenseProvider } from "./context/OverheadExpenseContext";
+import { SalaryAdvanceProvider } from "./context/SalaryAdvanceContext";
 
 // Sales, Expenses, and Cash Count are consolidated into one page again —
 // Daily Closing Report — with tabs + a sticky live summary sidebar.
@@ -56,6 +57,7 @@ export default function App() {
                   <CashSummaryProvider>
                     <PurchaseOrderProvider>
                         <OverheadExpenseProvider>
+                          <SalaryAdvanceProvider>
                     <Routes>
                       <Route path="/login" element={<LoginPage />} />
                       <Route element={<RequireAuth />}>
@@ -86,6 +88,7 @@ export default function App() {
                         </Route>
                       </Route>
                     </Routes>
+                          </SalaryAdvanceProvider>
                      </OverheadExpenseProvider>
                     </PurchaseOrderProvider>
                   </CashSummaryProvider>

@@ -1,5 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
-import { Loader2, Plus, Trash2, Pencil, ReceiptText } from "lucide-react";
+import { Loader2, Plus, Trash2, Pencil } from "lucide-react";
 import { useExpenses } from "../../context/ExpenseContext";
 import Modal from "../ui/Modal";
 
@@ -259,23 +259,17 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved, o
 
   const handleCancelNoExpenses = () => setConfirmNoExpensesOpen(false);
 
+  const isEmpty = savedExpenses.length === 0 && drafts.length === 0;
+
   return (
     <div>
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-[#f7e9d8] flex items-center justify-center shrink-0">
-            <ReceiptText size={16} className="text-[#a3672a]" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-900 leading-tight">Expenses</p>
-            <p className="text-xs text-slate-500 leading-tight">Log costs paid out during this shift</p>
-          </div>
-        </div>
+      <div className="flex items-center justify-between mb-2.5">
+        <p className="text-xs font-bold uppercase tracking-wide text-[#a3672a]">Expenses</p>
         <button
           onClick={openAddExpense}
-          className="flex items-center gap-1.5 text-xs font-semibold text-[#a3672a] bg-[#fdf6ea] border border-[#f0dcc0] rounded-full px-3 py-1.5 hover:bg-[#fbeedb]"
+          className="flex items-center gap-1 text-xs font-semibold text-[#a3672a] bg-[#fdf6ea] border border-[#f0dcc0] rounded-full px-3 py-1 hover:bg-[#fbeedb]"
         >
-          <Plus size={13} /> Add Expense
+          <Plus size={12} /> Add
         </button>
       </div>
 
@@ -371,15 +365,16 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved, o
             <Loader2 size={16} className="inline animate-spin mr-2" /> Loading…
           </div>
         )}
-      </div>
 
-      <div className="mt-4 bg-red-50 rounded-xl p-4 flex items-center justify-between">
-        <p className="text-sm font-bold text-slate-900">Total Expenses</p>
-        <span className="text-xl font-extrabold text-red-600 tabular-nums">{money(totalExpenses)}</span>
+        {!loading && isEmpty && (
+          <div className="border border-dashed border-slate-200 rounded-xl py-5 text-center text-sm text-slate-400">
+            No expenses this shift.
+          </div>
+        )}
       </div>
 
       {!hasRealExpenses && (
-        <div className="mt-4">
+        <div className="mt-3">
           <button
             onClick={alreadyMarkedNoExpense ? undefined : handleMarkNoExpenses}
             disabled={alreadyMarkedNoExpense || drafts.length > 0}

@@ -116,11 +116,13 @@ export default function PayrollPage() {
     const totalPayroll = summary.reduce((sum, r) => sum + Number(r.totalEarned || 0), 0);
     const totalDaysWorked = summary.reduce((sum, r) => sum + Number(r.daysWorked || 0), 0);
     const avgDailyWage = totalDaysWorked > 0 ? totalPayroll / totalDaysWorked : 0;
-    return { totalPayroll, totalDaysWorked, avgDailyWage, crewCount: summary.length };
+    const totalAdvances = summary.reduce((sum, r) => sum + Number(r.totalAdvances || 0), 0);
+    const totalNetPay = summary.reduce((sum, r) => sum + Number(r.netPay ?? r.totalEarned ?? 0), 0);
+    return { totalPayroll, totalDaysWorked, avgDailyWage, crewCount: summary.length, totalAdvances, totalNetPay };
   }, [summary]);
 
   const handleExportCsv = () => {
-    const header = ["Employee", "Branch", "Rate/Hour", "Days Worked", "Hours (Mo.)", "Total Earned"];
+    const header = ["Employee", "Branch", "Rate/Hour", "Days Worked", "Hours (Mo.)", "Total Earned", "Advances", "Net Pay"];
     const rows = summary.map((r) => [
       r.employeeName,
       r.branchName,
@@ -128,6 +130,8 @@ export default function PayrollPage() {
       r.daysWorked,
       formatHours(r.totalHours),
       Number(r.totalEarned || 0).toFixed(2),
+      Number(r.totalAdvances || 0).toFixed(2),
+      Number(r.netPay ?? r.totalEarned ?? 0).toFixed(2),
     ]);
     const csv = [header, ...rows].map((row) => row.map((c) => `"${c ?? ""}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -200,7 +204,7 @@ export default function PayrollPage() {
       )}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
             Total Payroll · {monthLabel(month)}
@@ -218,11 +222,19 @@ export default function PayrollPage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Advances Given</p>
+          <p className="text-2xl font-extrabold text-[#4338ca] mt-2">{money(totals.totalAdvances)}</p>
+          <p className="text-xs text-slate-400 mt-1">Already handed out this month, deducted below</p>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Pending Payout</p>
-          <p className="text-2xl font-extrabold text-[#8f1d1d] mt-2">{money(totals.totalPayroll)}</p>
+          <p className="text-2xl font-extrabold text-[#8f1d1d] mt-2">{money(totals.totalNetPay)}</p>
           <p className="text-xs text-slate-400 mt-1 flex items-start gap-1">
             <Info size={12} className="shrink-0 mt-0.5" />
-            No payroll runs recorded yet — the full period shown is unpaid.
+            {totals.totalAdvances > 0
+              ? "Net of advances already given — no payroll runs recorded yet."
+              : "No payroll runs recorded yet — the full period shown is unpaid."}
           </p>
         </div>
       </div>
@@ -243,7 +255,7 @@ export default function PayrollPage() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[760px]">
+            <table className="w-full text-sm min-w-[920px]">
               <thead>
                 <tr className="bg-[#f7e9d8] text-[#a3672a] text-xs uppercase tracking-wide">
                   <th className="text-left font-semibold py-3 px-4">Employee</th>
@@ -252,6 +264,8 @@ export default function PayrollPage() {
                   <th className="text-left font-semibold py-3 px-4">Days Worked</th>
                   <th className="text-left font-semibold py-3 px-4">Hours (Mo.)</th>
                   <th className="text-right font-semibold py-3 px-4">Total Earned</th>
+                  <th className="text-right font-semibold py-3 px-4">Advances</th>
+                  <th className="text-right font-semibold py-3 px-4">Net Pay</th>
                   <th className="text-right font-semibold py-3 px-4"></th>
                 </tr>
               </thead>
@@ -276,6 +290,12 @@ export default function PayrollPage() {
                     <td className="py-3 px-4 text-slate-600">{r.daysWorked}</td>
                     <td className="py-3 px-4 text-slate-600">{formatHours(r.totalHours)}</td>
                     <td className="py-3 px-4 text-right font-semibold text-slate-800">{money(r.totalEarned)}</td>
+                    <td className="py-3 px-4 text-right text-[#4338ca]">
+                      {Number(r.totalAdvances) > 0 ? `- ${money(r.totalAdvances)}` : "—"}
+                    </td>
+                    <td className="py-3 px-4 text-right font-bold text-slate-900">
+                      {money(r.netPay ?? r.totalEarned)}
+                    </td>
                     <td className="py-3 px-4 text-right">
                       <button
                         onClick={() => setSelectedEmployeeId(r.employeeId)}
@@ -360,10 +380,28 @@ export default function PayrollPage() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-[#f2c2be] bg-[#fff8f6]">
-                    <td colSpan={4} className="py-3 px-2 font-bold text-[#8f1d1d]">
-                      Total — {monthLabel(month)}
+                    <td colSpan={4} className="py-2 px-2 font-bold text-[#8f1d1d]">
+                      Total Earned — {monthLabel(month)}
                     </td>
-                    <td className="py-3 px-2 text-right font-extrabold text-[#8f1d1d]">{money(detail.totalEarned)}</td>
+                    <td className="py-2 px-2 text-right font-extrabold text-[#8f1d1d]">{money(detail.totalEarned)}</td>
+                  </tr>
+                  {Number(detail.totalAdvances) > 0 && (
+                    <tr className="bg-[#fff8f6]">
+                      <td colSpan={4} className="py-2 px-2 font-semibold text-[#4338ca]">
+                        Less: Salary Advances
+                      </td>
+                      <td className="py-2 px-2 text-right font-semibold text-[#4338ca]">
+                        - {money(detail.totalAdvances)}
+                      </td>
+                    </tr>
+                  )}
+                  <tr className="border-t border-[#f2c2be] bg-[#fff8f6]">
+                    <td colSpan={4} className="py-3 px-2 font-bold text-[#8f1d1d]">
+                      Net Pay — {monthLabel(month)}
+                    </td>
+                    <td className="py-3 px-2 text-right font-extrabold text-[#8f1d1d]">
+                      {money(detail.netPay ?? detail.totalEarned)}
+                    </td>
                   </tr>
                 </tfoot>
               </table>

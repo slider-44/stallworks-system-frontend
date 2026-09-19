@@ -50,6 +50,7 @@ export default function ReconciliationPage({
   employeeName,
   totalSales,
   totalExpenses,
+  totalAdvances,
   gcash,
   actualCash,
   pettyCashYesterday,
@@ -62,6 +63,12 @@ export default function ReconciliationPage({
   const cashDrawerCount = Number(actualCash || 0);
   const gcashCollected = Number(gcash || 0);
   const nextShiftFloat = Number(pettyCashNextday || 0);
+  // Cash handed out as a salary advance leaves the drawer the same way an
+  // expense payment does, even though it isn't an expense (it's a
+  // receivable against future wages, not a cost) — so it has to reduce
+  // "expected" cash the same way totalExpenses already does, or a shift
+  // with advances would falsely look "short" here.
+  const advancesGiven = Number(totalAdvances || 0);
   // The float carried IN at the start of this shift — the only thing that
   // can legitimately explain the drawer holding more cash than today's
   // sales alone would produce. NOT nextShiftFloat (money being set aside
@@ -91,7 +98,7 @@ export default function ReconciliationPage({
   // Step 1 — raw comparison, deliberately NOT float-adjusted. A drawer
   // that's still holding the next-shift float will legitimately show as
   // "Over" here — that's expected and informational, not an error.
-  const rawExpectedCash = totalSales - totalExpenses;
+  const rawExpectedCash = totalSales - totalExpenses - advancesGiven;
   const rawDifference = rawExpectedCash - actualReceived;
   const rawStatus = statusFromDifference(rawDifference);
   const rawStatusConfig = STATUS_CONFIG[rawStatus];
@@ -107,7 +114,7 @@ export default function ReconciliationPage({
   // "amount to remit" instead of duplicating Step 1's "amount collected".
   // This is the number that actually decides whether a note is required
   // and what gets saved when the shift is closed.
-  const expectedToRemit = totalSales - totalExpenses + incomingFloat - nextShiftFloat;
+  const expectedToRemit = totalSales - totalExpenses - advancesGiven + incomingFloat - nextShiftFloat;
   const actualRemitted = actualReceived - nextShiftFloat;
   const difference = expectedToRemit - actualRemitted;
   const status = statusFromDifference(difference);
@@ -191,7 +198,9 @@ export default function ReconciliationPage({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-emerald-50 rounded-xl p-4">
             <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Expected Cash</p>
-            <p className="text-xs text-slate-500 mt-0.5">From Sales &amp; Expenses</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {advancesGiven > 0 ? "Sales − Expenses − Advances" : "From Sales & Expenses"}
+            </p>
             <p className="text-2xl font-extrabold text-emerald-700 mt-2">{money(rawExpectedCash)}</p>
             <button className="flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:underline mt-2">
               View Sales &amp; Expenses Summary <ChevronRight size={12} />
@@ -299,6 +308,12 @@ export default function ReconciliationPage({
               <Wallet size={13} className="text-[#a3672a] shrink-0 mt-0.5" />
               <span>{money(nextShiftFloat)} remains in the drawer as tomorrow's starting float.</span>
             </div>
+            {advancesGiven > 0 && (
+              <div className="flex items-start gap-2 text-xs text-slate-600 mt-2">
+                <HandCoins size={13} className="text-[#4338ca] shrink-0 mt-0.5" />
+                <span>{money(advancesGiven)} was given as salary advances — already deducted from Expected Cash above.</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
