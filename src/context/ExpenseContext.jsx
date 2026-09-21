@@ -38,13 +38,17 @@ export function ExpenseProvider({ children }) {
 
   const updateExpense = useCallback(async (id, expenseRequest) => {
     const updated = await ExpenseAPI.update(id, expenseRequest);
-    setExpenses((prev) => prev.map((e) => (e.id === id ? updated : e)));
+    // id can arrive as a string here (e.g. via Object.keys() on a
+    // pendingEdits map in ExpensesTab), while e.id from the API is a
+    // number — compare as strings so the row actually gets replaced
+    // instead of silently falling through and reverting on next render.
+    setExpenses((prev) => prev.map((e) => (String(e.id) === String(id) ? updated : e)));
     return updated;
   }, []);
 
   const removeExpense = useCallback(async (id) => {
     await ExpenseAPI.remove(id);
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
+    setExpenses((prev) => prev.filter((e) => String(e.id) !== String(id)));
   }, []);
 
   const value = { expenses, loading, load, addExpenses, updateExpense, removeExpense };

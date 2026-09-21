@@ -36,13 +36,13 @@ export function SalaryAdvanceProvider({ children }) {
 
   const updateSalaryAdvance = useCallback(async (id, salaryAdvanceRequest) => {
     const updated = await SalaryAdvanceAPI.update(id, salaryAdvanceRequest);
-    setSalaryAdvances((prev) => prev.map((a) => (a.id === id ? updated : a)));
+    setSalaryAdvances((prev) => prev.map((a) => (String(a.id) === String(id) ? updated : a)));
     return updated;
   }, []);
 
   const removeSalaryAdvance = useCallback(async (id) => {
     await SalaryAdvanceAPI.remove(id);
-    setSalaryAdvances((prev) => prev.filter((a) => a.id !== id));
+    setSalaryAdvances((prev) => prev.filter((a) => String(a.id) !== String(id)));
   }, []);
 
   const value = {

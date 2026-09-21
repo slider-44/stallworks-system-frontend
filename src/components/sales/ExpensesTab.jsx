@@ -212,7 +212,7 @@ const ExpensesTab = forwardRef(function ExpensesTab({ date, branchId, onSaved, o
       // update endpoint exists yet; edits are expected to be occasional
       // corrections, not routine bulk actions like adding new expenses).
       for (const id of pendingEditIds) {
-        const existing = savedExpenses.find((e) => e.id === id);
+        const existing = savedExpenses.find((e) => String(e.id) === String(id));
         await updateExpense(id, {
           date,
           branchId: Number(branchId),
